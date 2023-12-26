@@ -50,3 +50,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+onoff_server/build
+sensor_server/build
+sensor_client/build
