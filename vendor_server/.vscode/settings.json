@@ -3,10 +3,5 @@
   "idf.adapterTargetName": "esp32c3",
   "idf.openOcdConfigs": [
     "board/esp32c3-bridge.cfg"
-  ],
-  "idf.portWin": "COM7",
-  "idf.flashType": "UART",
-  "files.associations": {
-    "esp_ble_mesh_time_scene_model_api.h": "c"
-  }
+  ]
 }
