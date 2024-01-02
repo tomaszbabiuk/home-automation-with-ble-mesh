@@ -57,3 +57,4 @@ sensor_client/build
 vendor_client/build
 vendor_server/build
 generic_gpio/build
+hormone_client/build
