@@ -5,5 +5,8 @@
     "board/esp32c3-bridge.cfg"
   ],
   "idf.flashType": "UART",
-  "idf.portWin": "COM7"
+  "idf.portWin": "COM7",
+  "files.associations": {
+    "ble_mesh_example_init.h": "c"
+  }
 }
