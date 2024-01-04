@@ -13,7 +13,6 @@
 
 #include "esp_log.h"
 #include "nvs_flash.h"
-#include "esp_timer.h"
 
 #include "esp_ble_mesh_common_api.h"
 #include "esp_ble_mesh_provisioning_api.h"
@@ -29,27 +28,24 @@
 
 #define CID_ESP 0x02E5
 
-#define MSG_SEND_TTL        3
-#define MSG_SEND_REL        false
-#define MSG_TIMEOUT         0
-#define MSG_ROLE            ROLE_NODE
-
 static uint8_t dev_uuid[16] = { 0xdd, 0xdd };
 
 static struct example_info_store {
-    uint16_t net_idx;       /* NetKey Index */
-    uint16_t app_idx;       /* AppKey Index */
-    uint16_t server_addr;   /* Vendor server unicast address */
-    uint8_t  tid;           /* Message TID */
+    uint16_t net_idx;   /* NetKey Index */
+    uint16_t app_idx;   /* AppKey Index */
+    uint8_t  onoff;     /* Remote OnOff */
+    uint8_t  tid;       /* Message TID */
 } __attribute__((packed)) store = {
     .net_idx = ESP_BLE_MESH_KEY_UNUSED,
     .app_idx = ESP_BLE_MESH_KEY_UNUSED,
-    .server_addr = 0x0,
+    .onoff = LED_OFF,
     .tid = 0x0,
 };
 
 static nvs_handle_t NVS_HANDLE;
-static const char * NVS_KEY = "hormone_client";
+static const char * NVS_KEY = "onoff_client";
+
+static esp_ble_mesh_client_t onoff_client;
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -70,109 +66,15 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
 
-static void mesh_example_info_store(void);
-
-/* Vendor client begin */
-#define ESP_BLE_MESH_VND_MODEL_ID_CLIENT    0x0000
-#define ESP_BLE_MESH_VND_MODEL_ID_SERVER    0x0001
-
-#define ESP_BLE_MESH_VND_MODEL_OP_SEND      ESP_BLE_MESH_MODEL_OP_3(0x00, CID_ESP)
-#define ESP_BLE_MESH_VND_MODEL_OP_STATUS    ESP_BLE_MESH_MODEL_OP_3(0x01, CID_ESP)
-
-static const esp_ble_mesh_client_op_pair_t vnd_op_pair[] = {
-    { ESP_BLE_MESH_VND_MODEL_OP_SEND, ESP_BLE_MESH_VND_MODEL_OP_STATUS },
-};
-
-static esp_ble_mesh_client_t vendor_client = {
-    .op_pair_size = ARRAY_SIZE(vnd_op_pair),
-    .op_pair = vnd_op_pair,
-};
-
-static esp_ble_mesh_model_op_t vnd_op[] = {
-    ESP_BLE_MESH_MODEL_OP(ESP_BLE_MESH_VND_MODEL_OP_STATUS, 2),
-    ESP_BLE_MESH_MODEL_OP_END,
-};
-
-static esp_ble_mesh_model_t vnd_models[] = {
-    ESP_BLE_MESH_VENDOR_MODEL(CID_ESP, ESP_BLE_MESH_VND_MODEL_ID_CLIENT,
-    vnd_op, NULL, &vendor_client),
-};
-
-void example_ble_mesh_send_vendor_message(bool resend)
-{
-    esp_ble_mesh_msg_ctx_t ctx = {0};
-    uint32_t opcode;
-    esp_err_t err;
-
-    ctx.net_idx = store.net_idx;
-    ctx.app_idx = store.app_idx;
-    ctx.addr = store.server_addr;
-    ctx.send_ttl = MSG_SEND_TTL;
-    ctx.send_rel = MSG_SEND_REL;
-    opcode = ESP_BLE_MESH_VND_MODEL_OP_SEND;
-
-    if (resend == false) {
-        store.tid++;
-    }
-
-    err = esp_ble_mesh_client_model_send_msg(vendor_client.model, &ctx, opcode,
-            sizeof(store.tid), (uint8_t *)&store.tid, MSG_TIMEOUT, true, MSG_ROLE);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to send vendor message 0x%06" PRIx32, opcode);
-        return;
-    }
-
-    mesh_example_info_store(); /* Store proper mesh example info */
-}
-
-static void example_ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event,
-                                             esp_ble_mesh_model_cb_param_t *param)
-{
-    static int64_t start_time;
-
-    switch (event) {
-    case ESP_BLE_MESH_MODEL_OPERATION_EVT:
-        if (param->model_operation.opcode == ESP_BLE_MESH_VND_MODEL_OP_STATUS) {
-            int64_t end_time = esp_timer_get_time();
-            ESP_LOGI(TAG, "Recv 0x06%" PRIx32 ", tid 0x%04x, time %lldus",
-                param->model_operation.opcode, store.tid, end_time - start_time);
-        }
-        break;
-    case ESP_BLE_MESH_MODEL_SEND_COMP_EVT:
-        if (param->model_send_comp.err_code) {
-            ESP_LOGE(TAG, "Failed to send message 0x%06" PRIx32, param->model_send_comp.opcode);
-            break;
-        }
-        start_time = esp_timer_get_time();
-        ESP_LOGI(TAG, "Send 0x%06" PRIx32, param->model_send_comp.opcode);
-        break;
-    case ESP_BLE_MESH_CLIENT_MODEL_RECV_PUBLISH_MSG_EVT:
-        ESP_LOGI(TAG, "Receive publish message 0x%06" PRIx32, param->client_recv_publish_msg.opcode);
-        break;
-    case ESP_BLE_MESH_CLIENT_MODEL_SEND_TIMEOUT_EVT:
-        ESP_LOGW(TAG, "Client message 0x%06" PRIx32 " timeout", param->client_send_timeout.opcode);
-        example_ble_mesh_send_vendor_message(true);
-        break;
-    default:
-        break;
-    }
-}
-
-
-
-/* Vendor client end*/
-
-
-
-
-// ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_cli_pub, 2 + 1, ROLE_NODE);
+ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_cli_pub, 2 + 1, ROLE_NODE);
 
 static esp_ble_mesh_model_t root_models[] = {
-    ESP_BLE_MESH_MODEL_CFG_SRV(&config_server)
+    ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
+    ESP_BLE_MESH_MODEL_GEN_ONOFF_CLI(&onoff_cli_pub, &onoff_client),
 };
 
 static esp_ble_mesh_elem_t elements[] = {
-    ESP_BLE_MESH_ELEMENT(0, root_models, vnd_models),
+    ESP_BLE_MESH_ELEMENT(0, root_models, ESP_BLE_MESH_MODEL_NONE),
 };
 
 static esp_ble_mesh_comp_t composition = {
@@ -211,8 +113,8 @@ static void mesh_example_info_restore(void)
     }
 
     if (exist) {
-        ESP_LOGI(TAG, "Restore, net_idx 0x%04x, app_idx 0x%04x, vend server address %04x, tid 0x%02x",
-            store.net_idx, store.app_idx, store.server_addr, store.tid);
+        ESP_LOGI(TAG, "Restore, net_idx 0x%04x, app_idx 0x%04x, onoff %u, tid 0x%02x",
+            store.net_idx, store.app_idx, store.onoff, store.tid);
     }
 }
 
@@ -267,6 +169,70 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
+void example_ble_mesh_send_gen_onoff_set(void)
+{
+    esp_ble_mesh_generic_client_set_state_t set = {0};
+    esp_ble_mesh_client_common_param_t common = {0};
+    esp_err_t err = ESP_OK;
+
+    common.opcode = ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK;
+    common.model = onoff_client.model;
+    common.ctx.net_idx = store.net_idx;
+    common.ctx.app_idx = store.app_idx;
+    common.ctx.addr = 0xFFFF;   /* to all nodes */
+    common.ctx.send_ttl = 3;
+    common.ctx.send_rel = false;
+    common.msg_timeout = 0;     /* 0 indicates that timeout value from menuconfig will be used */
+    common.msg_role = ROLE_NODE;
+
+    set.onoff_set.op_en = false;
+    set.onoff_set.onoff = store.onoff;
+    set.onoff_set.tid = store.tid++;
+
+    err = esp_ble_mesh_generic_client_set_state(&common, &set);
+    if (err) {
+        ESP_LOGE(TAG, "Send Generic OnOff Set Unack failed");
+        return;
+    }
+
+    store.onoff = !store.onoff;
+    mesh_example_info_store(); /* Store proper mesh example info */
+}
+
+static void example_ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t event,
+                                               esp_ble_mesh_generic_client_cb_param_t *param)
+{
+    ESP_LOGI(TAG, "Generic client, event %u, error code %d, opcode is 0x%04" PRIx32,
+        event, param->error_code, param->params->opcode);
+
+    switch (event) {
+    case ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_CLIENT_GET_STATE_EVT");
+        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET) {
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET, onoff %d", param->status_cb.onoff_status.present_onoff);
+        }
+        break;
+    case ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_CLIENT_SET_STATE_EVT");
+        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET, onoff %d", param->status_cb.onoff_status.present_onoff);
+        }
+        break;
+    case ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_CLIENT_PUBLISH_EVT");
+        break;
+    case ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT:
+        ESP_LOGI(TAG, "ESP_BLE_MESH_GENERIC_CLIENT_TIMEOUT_EVT");
+        if (param->params->opcode == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
+            /* If failed to get the response of Generic OnOff Set, resend Generic OnOff Set  */
+            example_ble_mesh_send_gen_onoff_set();
+        }
+        break;
+    default:
+        break;
+    }
+}
+
 static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,
                                               esp_ble_mesh_cfg_server_cb_param_t *param)
 {
@@ -303,8 +269,8 @@ static esp_err_t ble_mesh_init(void)
     esp_err_t err = ESP_OK;
 
     esp_ble_mesh_register_prov_callback(example_ble_mesh_provisioning_cb);
+    esp_ble_mesh_register_generic_client_callback(example_ble_mesh_generic_client_cb);
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
-    esp_ble_mesh_register_custom_model_callback(example_ble_mesh_custom_model_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);
     if (err != ESP_OK) {

@@ -52,6 +52,7 @@ Mkfile.old
 dkms.conf
 
 onoff_server/build
+onoff_client/build
 sensor_server/build
 sensor_client/build
 vendor_client/build
