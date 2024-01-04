@@ -213,6 +213,8 @@ static void mesh_example_info_restore(void)
     if (exist) {
         ESP_LOGI(TAG, "Restore, net_idx 0x%04x, app_idx 0x%04x, vend server address %04x, tid 0x%02x",
             store.net_idx, store.app_idx, store.server_addr, store.tid);
+    } else {
+        ESP_LOGI(TAG, "NVS restore failed!");
     }
 }
 
@@ -339,6 +341,7 @@ void app_main(void)
         err = nvs_flash_init();
     }
     ESP_ERROR_CHECK(err);
+    ESP_LOG_BUFFER_HEX("AppKey", &store.app_idx, 16);
 
     err = bluetooth_init();
     if (err) {
@@ -359,4 +362,6 @@ void app_main(void)
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
+
+    bt_mesh_set_device_name("HORMONE-CLIENT");
 }

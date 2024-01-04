@@ -53,6 +53,7 @@ dkms.conf
 
 onoff_server/build
 onoff_client/build
+r8_server/build
 sensor_server/build
 sensor_client/build
 vendor_client/build
