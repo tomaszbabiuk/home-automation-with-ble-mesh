@@ -49,7 +49,7 @@ static struct example_info_store {
 };
 
 static nvs_handle_t NVS_HANDLE;
-static const char * NVS_KEY = "hormone_client";
+static const char * NVS_KEY = "mesh_example";
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -106,7 +106,7 @@ void example_ble_mesh_send_vendor_message(bool resend)
 
     ctx.net_idx = store.net_idx;
     ctx.app_idx = store.app_idx;
-    ctx.addr = store.server_addr;
+    ctx.addr = 0xFFFF;
     ctx.send_ttl = MSG_SEND_TTL;
     ctx.send_rel = MSG_SEND_REL;
     opcode = ESP_BLE_MESH_VND_MODEL_OP_SEND;
@@ -116,13 +116,15 @@ void example_ble_mesh_send_vendor_message(bool resend)
     }
 
     err = esp_ble_mesh_client_model_send_msg(vendor_client.model, &ctx, opcode,
-            sizeof(store.tid), (uint8_t *)&store.tid, MSG_TIMEOUT, true, MSG_ROLE);
+            sizeof(store.tid), (uint8_t *)&store.tid, MSG_TIMEOUT, true, ROLE_PROVISIONER);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send vendor message 0x%06" PRIx32, opcode);
         return;
     }
 
-    mesh_example_info_store(); /* Store proper mesh example info */
+    ESP_LOG_BUFFER_HEX("AppKey", store., 16);
+
+    mesh_example_info_store(); // Store proper mesh example info 
 }
 
 static void example_ble_mesh_custom_model_cb(esp_ble_mesh_model_cb_event_t event,
@@ -197,6 +199,7 @@ static esp_ble_mesh_prov_t provision = {
 
 static void mesh_example_info_store(void)
 {
+    ESP_LOGI(TAG, "Storing mesh key here!");
     ble_mesh_nvs_store(NVS_HANDLE, NVS_KEY, &store, sizeof(store));
 }
 
@@ -280,6 +283,7 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
                 param->value.state_change.appkey_add.net_idx,
                 param->value.state_change.appkey_add.app_idx);
             ESP_LOG_BUFFER_HEX("AppKey", param->value.state_change.appkey_add.app_key, 16);
+            mesh_example_info_store(); /* Store proper mesh example info */
             break;
         case ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_MODEL_APP_BIND");

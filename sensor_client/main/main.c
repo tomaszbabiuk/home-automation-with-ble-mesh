@@ -692,4 +692,6 @@ void app_main(void)
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
+
+    //bt_mesh_set_device_name("SENSOR-CLIENT");
 }

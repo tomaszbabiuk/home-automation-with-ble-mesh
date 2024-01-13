@@ -29,7 +29,7 @@
 
 #define CID_ESP 0x02E5
 
-extern struct _relay_state relay_state[8];
+extern struct _led_state led_state[3];
 
 static uint8_t dev_uuid[16] = { 0xdd, 0xdd };
 
@@ -70,36 +70,6 @@ static esp_ble_mesh_gen_onoff_srv_t onoff_server_2 = {
     .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
 };
 
-ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_pub_3, 2 + 3, ROLE_NODE);
-static esp_ble_mesh_gen_onoff_srv_t onoff_server_3 = {
-    .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
-    .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
-};
-
-ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_pub_4, 2 + 3, ROLE_NODE);
-static esp_ble_mesh_gen_onoff_srv_t onoff_server_4 = {
-    .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
-    .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
-};
-
-ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_pub_5, 2 + 3, ROLE_NODE);
-static esp_ble_mesh_gen_onoff_srv_t onoff_server_5 = {
-    .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
-    .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
-};
-
-ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_pub_6, 2 + 3, ROLE_NODE);
-static esp_ble_mesh_gen_onoff_srv_t onoff_server_6 = {
-    .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
-    .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
-};
-
-ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_pub_7, 2 + 3, ROLE_NODE);
-static esp_ble_mesh_gen_onoff_srv_t onoff_server_7 = {
-    .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
-    .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
-};
-
 static esp_ble_mesh_model_t root_models[] = {
     ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
     ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_0, &onoff_server_0),
@@ -113,35 +83,10 @@ static esp_ble_mesh_model_t extend_model_1[] = {
     ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_2, &onoff_server_2),
 };
 
-static esp_ble_mesh_model_t extend_model_2[] = {
-    ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_3, &onoff_server_3),
-};
-
-static esp_ble_mesh_model_t extend_model_3[] = {
-    ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_4, &onoff_server_4),
-};
-
-static esp_ble_mesh_model_t extend_model_4[] = {
-    ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_5, &onoff_server_5),
-};
-
-static esp_ble_mesh_model_t extend_model_5[] = {
-    ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_6, &onoff_server_6),
-};
-
-static esp_ble_mesh_model_t extend_model_6[] = {
-    ESP_BLE_MESH_MODEL_GEN_ONOFF_SRV(&onoff_pub_7, &onoff_server_7),
-};
-
 static esp_ble_mesh_elem_t elements[] = {
     ESP_BLE_MESH_ELEMENT(0, root_models, ESP_BLE_MESH_MODEL_NONE),
     ESP_BLE_MESH_ELEMENT(0, extend_model_0, ESP_BLE_MESH_MODEL_NONE),
     ESP_BLE_MESH_ELEMENT(0, extend_model_1, ESP_BLE_MESH_MODEL_NONE),
-    ESP_BLE_MESH_ELEMENT(0, extend_model_2, ESP_BLE_MESH_MODEL_NONE),
-    ESP_BLE_MESH_ELEMENT(0, extend_model_3, ESP_BLE_MESH_MODEL_NONE),
-    ESP_BLE_MESH_ELEMENT(0, extend_model_4, ESP_BLE_MESH_MODEL_NONE),
-    ESP_BLE_MESH_ELEMENT(0, extend_model_5, ESP_BLE_MESH_MODEL_NONE),
-    ESP_BLE_MESH_ELEMENT(0, extend_model_6, ESP_BLE_MESH_MODEL_NONE),
 };
 
 static esp_ble_mesh_comp_t composition = {
@@ -168,7 +113,7 @@ static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32
 {
     ESP_LOGI(TAG, "net_idx: 0x%04x, addr: 0x%04x", net_idx, addr);
     ESP_LOGI(TAG, "flags: 0x%02x, iv_index: 0x%08" PRIx32, flags, iv_index);
-    //board_led_operation(LED_G, LED_OFF);
+    board_led_operation(LED_G, LED_OFF);
 }
 
 static void example_change_led_state(esp_ble_mesh_model_t *model,
@@ -176,23 +121,23 @@ static void example_change_led_state(esp_ble_mesh_model_t *model,
 {
     uint16_t primary_addr = esp_ble_mesh_get_primary_element_address();
     uint8_t elem_count = esp_ble_mesh_get_element_count();
-    struct _relay_state *led = NULL;
+    struct _led_state *led = NULL;
     uint8_t i;
 
     if (ESP_BLE_MESH_ADDR_IS_UNICAST(ctx->recv_dst)) {
         for (i = 0; i < elem_count; i++) {
             if (ctx->recv_dst == (primary_addr + i)) {
-                led = &relay_state[i];
+                led = &led_state[i];
                 board_led_operation(led->pin, onoff);
             }
         }
     } else if (ESP_BLE_MESH_ADDR_IS_GROUP(ctx->recv_dst)) {
         if (esp_ble_mesh_is_model_subscribed_to_group(model, ctx->recv_dst)) {
-            led = &relay_state[model->element->element_addr - primary_addr];
+            led = &led_state[model->element->element_addr - primary_addr];
             board_led_operation(led->pin, onoff);
         }
     } else if (ctx->recv_dst == 0xFFFF) {
-        led = &relay_state[model->element->element_addr - primary_addr];
+        led = &led_state[model->element->element_addr - primary_addr];
         board_led_operation(led->pin, onoff);
     }
 }
@@ -361,7 +306,7 @@ static esp_err_t ble_mesh_init(void)
 
     ESP_LOGI(TAG, "BLE Mesh Node initialized");
 
-    //board_led_operation(LED_G, LED_ON);
+    board_led_operation(LED_G, LED_ON);
 
     return err;
 }
@@ -394,6 +339,4 @@ void app_main(void)
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
-    
-    bt_mesh_set_device_name("TOMEK-1");
 }
