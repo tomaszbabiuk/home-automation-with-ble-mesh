@@ -23,10 +23,18 @@
 #include "board.h"
 #include "ble_mesh_example_init.h"
 #include "ble_mesh_example_nvs.h"
+#include "esp_ble_mesh_defs.h"
 
 #define TAG "EXAMPLE"
 
 #define CID_ESP 0x02E5
+
+#define ESP_BLE_MESH_VND_MODEL_ID_CLIENT    0x0000
+#define ESP_BLE_MESH_VND_MODEL_ID_SERVER    0x0001
+
+#define ESP_BLE_MESH_VND_MODEL_OP_SEND      ESP_BLE_MESH_MODEL_OP_3(0x00, CID_ESP)
+#define ESP_BLE_MESH_VND_MODEL_OP_STATUS    ESP_BLE_MESH_MODEL_OP_3(0x01, CID_ESP)
+
 
 static uint8_t dev_uuid[16] = { 0xdd, 0xdd };
 
@@ -66,6 +74,15 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
 
+static const esp_ble_mesh_client_op_pair_t vnd_op_pair[] = {
+    { ESP_BLE_MESH_VND_MODEL_OP_SEND, ESP_BLE_MESH_VND_MODEL_OP_STATUS },
+};
+
+static esp_ble_mesh_client_t vendor_client = {
+    .op_pair_size = ARRAY_SIZE(vnd_op_pair),
+    .op_pair = vnd_op_pair,
+};
+
 ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_cli_pub, 2 + 1, ROLE_NODE);
 
 static esp_ble_mesh_model_t root_models[] = {
@@ -73,8 +90,18 @@ static esp_ble_mesh_model_t root_models[] = {
     ESP_BLE_MESH_MODEL_GEN_ONOFF_CLI(&onoff_cli_pub, &onoff_client),
 };
 
+static esp_ble_mesh_model_op_t vnd_op[] = {
+    ESP_BLE_MESH_MODEL_OP(ESP_BLE_MESH_VND_MODEL_OP_STATUS, 2),
+    ESP_BLE_MESH_MODEL_OP_END,
+};
+
+static esp_ble_mesh_model_t vnd_models[] = {
+    ESP_BLE_MESH_VENDOR_MODEL(CID_ESP, ESP_BLE_MESH_VND_MODEL_ID_CLIENT,
+    vnd_op, NULL, &vendor_client),
+};
+
 static esp_ble_mesh_elem_t elements[] = {
-    ESP_BLE_MESH_ELEMENT(0, root_models, ESP_BLE_MESH_MODEL_NONE),
+    ESP_BLE_MESH_ELEMENT(0, root_models, vnd_models),
 };
 
 static esp_ble_mesh_comp_t composition = {
@@ -196,6 +223,33 @@ void example_ble_mesh_send_gen_onoff_set(void)
     }
 
     store.onoff = !store.onoff;
+    mesh_example_info_store(); /* Store proper mesh example info */
+}
+
+void example_ble_mesh_send_vendor_message(bool resend)
+{
+    esp_ble_mesh_msg_ctx_t ctx = {0};
+    uint32_t opcode;
+    esp_err_t err;
+
+    ctx.net_idx = store.net_idx;
+    ctx.app_idx = store.app_idx;
+    ctx.addr = 0xFFFF;   /* to all nodes */
+    ctx.send_ttl = 3;
+    ctx.send_rel = false;
+    opcode = ESP_BLE_MESH_VND_MODEL_OP_SEND;
+
+    if (resend == false) {
+        store.tid++;
+    }
+
+    err = esp_ble_mesh_client_model_send_msg(vendor_client.model, &ctx, opcode,
+            sizeof(store.tid), (uint8_t *)&store.tid, 0, true, ROLE_NODE);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to send vendor message 0x%06" PRIx32, opcode);
+        return;
+    }
+
     mesh_example_info_store(); /* Store proper mesh example info */
 }
 
@@ -325,4 +379,6 @@ void app_main(void)
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
+
+     bt_mesh_set_device_name("VND-CLIENT");
 }

@@ -56,7 +56,7 @@ onoff_client/build
 r8_server/build
 sensor_server/build
 sensor_client/build
-vendor_client/build
-vendor_server/build
+heating_manifold/build
+recuperator/build
 generic_gpio/build
 hormone_client/build
