@@ -24,43 +24,21 @@
 
 #include "ble_mesh_example_init.h"
 #include "board.h"
-#include "driver/i2c.h"
-
-#define TAG "EXAMPLE"
-
-#define _I2C_NUMBER(num) I2C_NUM_##num
-#define I2C_NUMBER(num) _I2C_NUMBER(num)
-
-#define BH1750_SENSOR_ADDR  0x23
-#define BH1750_CMD_START    0x23
-#define SHT30_SENSOR_ADDR   0x45
-#define SHT30_CMD_MEASURE_HIGH_REPETABILITY {0x2C, 0x06}
-
-#define I2C_MASTER_SCL_IO 10
-#define I2C_MASTER_SDA_IO 8
-#define I2C_MASTER_NUM 0
-#define I2C_MASTER_FREQ_HZ 100000
-#define I2C_MASTER_TX_BUF_DISABLE 0                   
-#define I2C_MASTER_RX_BUF_DISABLE 0   
-
-#define DELAY_TIME_BETWEEN_ITEMS_MS 10000
+#include "sensors.h"
 
 SemaphoreHandle_t print_mux = NULL;
 
-
+#define TAG "MAIN"
 #define CID_ESP     0x02E5
+
+/* I2C refresh interval */
+#define DELAY_TIME_BETWEEN_ITEMS_MS 10000
 
 /* Sensor Property ID */
 #define BT_MESH_PROP_ID_PRESENT_INDOOR_AMB_TEMP             0x0056
 #define BT_MESH_PROP_ID_PRESENT_AMB_LIGHT_LEVEL             0x004E
 #define BT_MESH_PROP_ID_PRESENT_INDOOR_RELATIVE_HUMIDITY    0x00A7
 #define BT_MESH_PROP_ID_MOTION_SENSED                       0x0042
-
-/* The characteristic of the two device properties is "Temperature 8", which is
- * used to represent a measure of temperature with a unit of 0.5 degree Celsius.
- * Minimum value: -64.0, maximum value: 63.5.
- * A value of 0xFF represents 'value is not known'.
- */
 
 // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/libraries/bluetooth_services/mesh/sensor_types.html#bt-mesh-sensor-types-readme
 static uint32_t luminocityToReport = 1000; // = 10 lux
@@ -99,13 +77,6 @@ NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_hum, 2);
 NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_temp, 1);
 
 static esp_ble_mesh_sensor_state_t sensor_states[3] = {
-    /* Mesh Model Spec:
-     * Multiple instances of the Sensor states may be present within the same model,
-     * provided that each instance has a unique value of the Sensor Property ID to
-     * allow the instances to be differentiated. Such sensors are known as multisensors.
-     * In this example, two instances of the Sensor states within the same model are
-     * provided.
-     */
     [0] = {
         .sensor_property_id = BT_MESH_PROP_ID_PRESENT_AMB_LIGHT_LEVEL,
         .descriptor.positive_tolerance = SENSOR_POSITIVE_TOLERANCE,
@@ -141,8 +112,8 @@ static esp_ble_mesh_sensor_state_t sensor_states[3] = {
     }
 };
 
-/* 20 octets is large enough to hold two Sensor Descriptor state values. */
-ESP_BLE_MESH_MODEL_PUB_DEFINE(sensor_pub, 20, ROLE_NODE);
+/* 30 octets is large enough to hold three Sensor Descriptor state values. */
+ESP_BLE_MESH_MODEL_PUB_DEFINE(sensor_pub, 30, ROLE_NODE);
 static esp_ble_mesh_sensor_srv_t sensor_server = {
     .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
     .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
@@ -150,7 +121,7 @@ static esp_ble_mesh_sensor_srv_t sensor_server = {
     .states = sensor_states,
 };
 
-ESP_BLE_MESH_MODEL_PUB_DEFINE(sensor_setup_pub, 20, ROLE_NODE);
+ESP_BLE_MESH_MODEL_PUB_DEFINE(sensor_setup_pub, 30, ROLE_NODE);
 static esp_ble_mesh_sensor_setup_srv_t sensor_setup_server = {
     .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
     .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_RSP_BY_APP,
@@ -643,92 +614,6 @@ static esp_err_t ble_mesh_init(void)
     return ESP_OK;
 }
 
-
-
-/* I2C*/
-static esp_err_t i2c_master_sensor_bh1750(i2c_port_t i2c_num, uint32_t *luminocity)
-{
-    uint8_t command[] = { BH1750_CMD_START };
-    uint8_t data[2];
-	esp_err_t ret = i2c_master_write_read_device(i2c_num, BH1750_SENSOR_ADDR, command, 1, data, 2, pdMS_TO_TICKS(1000));
-
-    *luminocity = (data[0] << 8 | data[1]) / 1.2 * 100;
-
-    return ret;
-}
-
-static uint8_t calculate_crc8(uint8_t *data, int len)
-{
-	const uint8_t	POLYNOMIAL = 0x31;
-	uint8_t			crc = 0xFF;
-	int				i, j;
-	
-	for (i = 0; i < len; ++i)
-	{
-		crc ^= *data++;
-		for (j = 0; j < 8; ++j)
-			crc = (crc & 0x80) ? (crc << 1) ^ POLYNOMIAL : (crc << 1);
-	}
-	return crc;
-}
-
-static esp_err_t i2c_master_sensor_sht30(i2c_port_t i2c_num, float *tempC, float *humidity)
-{
-    uint16_t val;
-    uint8_t command[] = SHT30_CMD_MEASURE_HIGH_REPETABILITY;
-    uint8_t data[6];
-	esp_err_t ret = i2c_master_write_read_device(i2c_num, SHT30_SENSOR_ADDR, command, 2, data, 6, pdMS_TO_TICKS(1000));
-	if (ret != ESP_OK) {
-        return ret;
-    }
-
-    if (data[0] == 0xff && data[1] == 0xff && data[2] == 0xff && data[3] == 0xff && data[4] == 0xff && data[5] == 0xff)
-		{
-			return ESP_ERR_INVALID_RESPONSE;		
-		}
-
-		if (calculate_crc8(data, 2) != data[2])
-		{
-            return ESP_ERR_INVALID_CRC;
-		} else {
-			val = data[0] << 8;
-			val += data[1];
-			*tempC = -45.0f + 175.0f * ((float)val / 65535.0f);
-		}
-
-		if (calculate_crc8(data+3, 2) != data[5])
-		{
-            return ESP_ERR_INVALID_CRC;
-		} else {
-			val = data[0] << 8;
-			val += data[1];
-			*humidity = 100.0f * ((float)val / 65535.0f);
-		}
-
-    return ret;
-    }
-
-/**
- * @brief i2c master initialization
- */
-static esp_err_t i2c_master_init(void)
-{
-    int i2c_master_port = I2C_MASTER_NUM;
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = I2C_MASTER_SDA_IO,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_io_num = I2C_MASTER_SCL_IO,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = I2C_MASTER_FREQ_HZ,
-    };
-    esp_err_t err = i2c_param_config(i2c_master_port, &conf);
-    if (err != ESP_OK) {
-        return err;
-    }
-    return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
-}
-
 static void i2c_test_bh1750(void *arg)
 {
     int ret;
@@ -736,7 +621,7 @@ static void i2c_test_bh1750(void *arg)
     int cnt = 0;
     while (1) {
         ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
-        ret = i2c_master_sensor_bh1750(I2C_MASTER_NUM, (uint8_t*)sensor_data_lum.data);
+        ret = i2c_master_sensor_bh1750((uint8_t*)sensor_data_lum.data);
         xSemaphoreTake(print_mux, portMAX_DELAY);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
@@ -760,7 +645,7 @@ static void i2c_test_sht30(void *arg)
     int cnt = 0;
     while (1) {
         ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
-        ret = i2c_master_sensor_sht30(I2C_MASTER_NUM, &tempC, &humidity);
+        ret = i2c_master_sensor_sht30(&tempC, &humidity);
         xSemaphoreTake(print_mux, portMAX_DELAY);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
@@ -777,8 +662,6 @@ static void i2c_test_sht30(void *arg)
     vSemaphoreDelete(print_mux);
     vTaskDelete(NULL);
 }
-
-
 
 void app_main(void)
 {

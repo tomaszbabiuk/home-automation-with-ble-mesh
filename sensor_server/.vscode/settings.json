@@ -7,7 +7,8 @@
   "idf.portWin": "COM3",
   "idf.flashType": "UART",
   "files.associations": {
-    "esp_ble_mesh_time_scene_model_api.h": "c"
+    "esp_ble_mesh_time_scene_model_api.h": "c",
+    "esp_ble_mesh_sensor_model_api.h": "c"
   },
   "idf.port": "/dev/cu.usbmodem2101"
 }
