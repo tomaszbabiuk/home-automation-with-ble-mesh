@@ -1,12 +1,13 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
-  "idf.adapterTargetName": "esp32",
+  "idf.adapterTargetName": "esp32c3",
   "idf.openOcdConfigs": [
-    "board/esp32-wrover-kit-3.3v.cfg"
+    "board/esp32c3-bridge.cfg"
   ],
   "idf.portWin": "COM3",
   "idf.flashType": "UART",
   "files.associations": {
     "esp_ble_mesh_time_scene_model_api.h": "c"
-  }
+  },
+  "idf.port": "/dev/cu.usbmodem2101"
 }
