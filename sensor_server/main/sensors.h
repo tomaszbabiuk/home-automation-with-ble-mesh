@@ -21,7 +21,7 @@
 #define TAG "SENSORS"
 
 esp_err_t i2c_master_init(void);
-esp_err_t i2c_master_sensor_sht30(float *tempC, float *humidity);
+esp_err_t i2c_master_sensor_sht30(int8_t *tempC, uint16_t *humidity);
 esp_err_t i2c_master_sensor_bh1750(uint32_t *luminocity);
 
 #endif

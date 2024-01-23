@@ -32,7 +32,7 @@ SemaphoreHandle_t print_mux = NULL;
 #define CID_ESP     0x02E5
 
 /* I2C refresh interval */
-#define DELAY_TIME_BETWEEN_ITEMS_MS 10000
+#define DELAY_TIME_BETWEEN_ITEMS_MS 5000
 
 /* Sensor Property ID */
 #define BT_MESH_PROP_ID_PRESENT_INDOOR_AMB_TEMP             0x0056
@@ -641,17 +641,16 @@ static void i2c_test_sht30(void *arg)
 {
     int ret;
     int task_idx = (int)arg;
-    float tempC, humidity;
     int cnt = 0;
     while (1) {
         ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
-        ret = i2c_master_sensor_sht30(&tempC, &humidity);
+        ret = i2c_master_sensor_sht30((int8_t*)sensor_data_temp.data, (uint8_t*)sensor_data_hum.data);
         xSemaphoreTake(print_mux, portMAX_DELAY);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
         } else if (ret == ESP_OK) {
-            printf("TEMP: %.02f C\n", tempC);
-            printf("HUM: %.02f %%\n", humidity);
+            printf("TEMP: %d [C * 0.5]\n", *sensor_data_temp.data);
+            printf("HUM: %d [%% * 100]\n", *(uint16_t*)sensor_data_hum.data);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }

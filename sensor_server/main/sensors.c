@@ -33,7 +33,7 @@ uint8_t calculate_crc8(uint8_t *data, int len)
 	return crc;
 }
 
-esp_err_t i2c_master_sensor_sht30(float *tempC, float *humidity)
+esp_err_t i2c_master_sensor_sht30(int8_t *tempC, uint16_t *humidity)
 {
     uint16_t val;
     uint8_t command[] = SHT30_CMD_MEASURE_HIGH_REPETABILITY;
@@ -54,16 +54,18 @@ esp_err_t i2c_master_sensor_sht30(float *tempC, float *humidity)
 		} else {
 			val = data[0] << 8;
 			val += data[1];
-			*tempC = -45.0f + 175.0f * ((float)val / 65535.0f);
+			*tempC = (-45.0f + 175.0f * ((float)val / 65535.0f))*2;
 		}
 
 		if (calculate_crc8(data+3, 2) != data[5])
 		{
             return ESP_ERR_INVALID_CRC;
 		} else {
-			val = data[0] << 8;
-			val += data[1];
-			*humidity = 100.0f * ((float)val / 65535.0f);
+			val = data[3] << 8;
+			val += data[4];
+			float humF = 100.0f * ((float)val / 65535.0f);
+			uint16_t humD = humF * 100;
+			*humidity = humD;
 		}
 
     return ret;
