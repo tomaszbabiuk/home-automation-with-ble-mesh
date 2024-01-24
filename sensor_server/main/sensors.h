@@ -15,13 +15,13 @@
 #define I2C_MASTER_SDA_IO 8
 #define I2C_MASTER_NUM 0
 #define I2C_MASTER_FREQ_HZ 100000
-#define I2C_MASTER_TX_BUF_DISABLE 0                   
+#define I2C_MASTER_TX_BUF_DISABLE 0                  
 #define I2C_MASTER_RX_BUF_DISABLE 0   
 
 #define TAG "SENSORS"
 
 esp_err_t i2c_master_init(void);
-esp_err_t i2c_master_sensor_sht30(int8_t *tempC, uint16_t *humidity);
-esp_err_t i2c_master_sensor_bh1750(uint32_t *luminocity);
+esp_err_t i2c_master_sensor_sht30(float *tempC, float *humidity);
+esp_err_t i2c_master_sensor_bh1750(float *luminocity);
 
 #endif

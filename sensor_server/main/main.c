@@ -619,14 +619,17 @@ static void i2c_test_bh1750(void *arg)
     int ret;
     int task_idx = (int)arg;
     int cnt = 0;
+    float luminocityF;
     while (1) {
         ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
-        ret = i2c_master_sensor_bh1750((uint8_t*)sensor_data_lum.data);
+        ret = i2c_master_sensor_bh1750(luminocityF);
         xSemaphoreTake(print_mux, portMAX_DELAY);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
         } else if (ret == ESP_OK) {
-            printf("LIGHT: %d [Lux * 100]\n", *(int*)sensor_data_lum.data);
+            uint32_t* luminocity = (uint32_t*)sensor_data_lum.data;
+            *luminocity = luminocityF * 100;
+            ESP_LOGI(TAG, "LIGHT: %d [Lux]\n", luminocityF);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
@@ -644,13 +647,18 @@ static void i2c_test_sht30(void *arg)
     int cnt = 0;
     while (1) {
         ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
-        ret = i2c_master_sensor_sht30((int8_t*)sensor_data_temp.data, (uint8_t*)sensor_data_hum.data);
+        float tempCF, humidityF;
+        ret = i2c_master_sensor_sht30(&tempCF, &humidityF);
         xSemaphoreTake(print_mux, portMAX_DELAY);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
         } else if (ret == ESP_OK) {
-            printf("TEMP: %d [C * 0.5]\n", *sensor_data_temp.data);
-            printf("HUM: %d [%% * 100]\n", *(uint16_t*)sensor_data_hum.data);
+            int8_t tempC = tempCF * 2;
+            *sensor_data_temp.data = tempC;
+            uint16_t* humidity = (uint16_t*)sensor_data_hum.data;
+            *humidity = humidityF * 100;
+
+            ESP_LOGI(TAG, "SHT30 temp=%.2fC, hum=%.2f%%", tempCF, humidityF);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }

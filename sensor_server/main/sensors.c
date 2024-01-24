@@ -7,13 +7,13 @@
 #include "esp_log.h"
 #include "esp_err.h"
 
-esp_err_t i2c_master_sensor_bh1750(uint32_t *luminocity)
+esp_err_t i2c_master_sensor_bh1750(float *luminocity)
 {
     uint8_t command[] = { BH1750_CMD_START };
     uint8_t data[2];
 	esp_err_t ret = i2c_master_write_read_device(I2C_MASTER_NUM, BH1750_SENSOR_ADDR, command, 1, data, 2, pdMS_TO_TICKS(1000));
 
-    *luminocity = (data[0] << 8 | data[1]) / 1.2 * 100;
+    *luminocity = (data[0] << 8 | data[1]) / 1.2;
 
     return ret;
 }
@@ -33,7 +33,7 @@ uint8_t calculate_crc8(uint8_t *data, int len)
 	return crc;
 }
 
-esp_err_t i2c_master_sensor_sht30(int8_t *tempC, uint16_t *humidity)
+esp_err_t i2c_master_sensor_sht30(float *tempC, float *humidity)
 {
     uint16_t val;
     uint8_t command[] = SHT30_CMD_MEASURE_HIGH_REPETABILITY;
@@ -54,7 +54,7 @@ esp_err_t i2c_master_sensor_sht30(int8_t *tempC, uint16_t *humidity)
 		} else {
 			val = data[0] << 8;
 			val += data[1];
-			*tempC = (-45.0f + 175.0f * ((float)val / 65535.0f))*2;
+			*tempC = (-45.0f + 175.0f * ((float)val / 65535.0f));
 		}
 
 		if (calculate_crc8(data+3, 2) != data[5])
@@ -63,9 +63,7 @@ esp_err_t i2c_master_sensor_sht30(int8_t *tempC, uint16_t *humidity)
 		} else {
 			val = data[3] << 8;
 			val += data[4];
-			float humF = 100.0f * ((float)val / 65535.0f);
-			uint16_t humD = humF * 100;
-			*humidity = humD;
+			*humidity = 100.0f * ((float)val / 65535.0f);
 		}
 
     return ret;
