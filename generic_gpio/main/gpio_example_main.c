@@ -73,16 +73,15 @@ void app_main(void)
 }
 */
 
-// void xxx(uint8_t code) {
-//     printf("%d\n", code);
-// }
+void xxx(int millis) {
+     printf("xxx %d \n", millis);
+}
 
 void app_main(void) {
-    digital_input_init(NULL);
+    digital_input_init(&xxx);
 
     int cnt = 0;
     while(1) {
-        printf("cnt: %d\n", cnt++);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }

@@ -1,7 +1,5 @@
 #pragma once
 
-// typedef void (*button_pressed_f)(uint8_t);
+typedef void (*input_signal_f)(int);
 
-void foo( void (*fPtr)() );
-
-void digital_input_init();
+void digital_input_init(input_signal_f func);
