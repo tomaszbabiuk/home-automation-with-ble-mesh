@@ -25,6 +25,7 @@
 #include "ble_mesh_example_init.h"
 #include "board.h"
 #include "sensors.h"
+#include "rgb_led.h"
 
 SemaphoreHandle_t print_mux = NULL;
 
@@ -622,14 +623,14 @@ static void i2c_test_bh1750(void *arg)
     float luminocityF;
     while (1) {
         ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
-        ret = i2c_master_sensor_bh1750(luminocityF);
+        ret = i2c_master_sensor_bh1750(&luminocityF);
         xSemaphoreTake(print_mux, portMAX_DELAY);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
         } else if (ret == ESP_OK) {
             uint32_t* luminocity = (uint32_t*)sensor_data_lum.data;
             *luminocity = luminocityF * 100;
-            ESP_LOGI(TAG, "LIGHT: %d [Lux]\n", luminocityF);
+            ESP_LOGI(TAG, "LIGHT: %.02f [Lux]\n", luminocityF);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
@@ -706,4 +707,9 @@ void app_main(void)
     ESP_ERROR_CHECK(i2c_master_init());
     xTaskCreate(i2c_test_bh1750, "i2c_test_task_0", 1024 * 2, (void *)0, 10, NULL);
     xTaskCreate(i2c_test_sht30, "i2c_test_task_1", 1024 * 2, (void *)1, 10, NULL);
+
+    //controlling led
+    rgb_led_enable();
+    rgb_led_color_t color = GREEN;
+    rgb_led_control(color);
 }
