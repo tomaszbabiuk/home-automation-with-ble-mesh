@@ -25,7 +25,6 @@
 #include "ble_mesh_example_init.h"
 #include "board.h"
 #include "sensors.h"
-#include "rgb_led.h"
 
 SemaphoreHandle_t print_mux = NULL;
 
@@ -154,7 +153,8 @@ static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32
 {
     ESP_LOGI(TAG, "net_idx 0x%03x, addr 0x%04x", net_idx, addr);
     ESP_LOGI(TAG, "flags 0x%02x, iv_index 0x%08" PRIx32, flags, iv_index);
-    board_led_operation(LED_G, LED_OFF);
+    
+    board_rgb_led_control(GREEN);
 
     /* Initialize the indoor and outdoor temperatures for each sensor.  */
     net_buf_simple_add_le32(&sensor_data_lum, luminocityToReport);
@@ -608,8 +608,6 @@ static esp_err_t ble_mesh_init(void)
         return err;
     }
 
-    board_led_operation(LED_G, LED_ON);
-
     ESP_LOGI(TAG, "BLE Mesh sensor server initialized");
 
     return ESP_OK;
@@ -708,8 +706,9 @@ void app_main(void)
     xTaskCreate(i2c_test_bh1750, "i2c_test_task_0", 1024 * 2, (void *)0, 10, NULL);
     xTaskCreate(i2c_test_sht30, "i2c_test_task_1", 1024 * 2, (void *)1, 10, NULL);
 
-    //controlling led
-    rgb_led_enable();
-    rgb_led_color_t color = GREEN;
-    rgb_led_control(color);
+    if (esp_ble_mesh_node_is_provisioned()) {        
+        board_rgb_led_control(GREEN);
+    } else {
+        board_rgb_led_control(RED);
+    }
 }
