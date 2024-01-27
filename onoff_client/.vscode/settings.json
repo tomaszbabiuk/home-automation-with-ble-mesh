@@ -5,5 +5,9 @@
     "board/esp32c3-bridge.cfg"
   ],
   "idf.portWin": "COM7",
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "files.associations": {
+    "board.h": "c",
+    "iot_button.h": "c"
+  }
 }
