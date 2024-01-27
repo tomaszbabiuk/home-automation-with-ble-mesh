@@ -74,13 +74,12 @@ void app_main(void)
 */
 
 void xxx(int millis) {
-     printf("xxx %d \n", millis);
+     printf("xxx %d \n", millis/1000000);
 }
 
 void app_main(void) {
     digital_input_init(&xxx);
 
-    int cnt = 0;
     while(1) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }

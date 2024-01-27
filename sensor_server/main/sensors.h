@@ -18,8 +18,6 @@
 #define I2C_MASTER_TX_BUF_DISABLE 0                  
 #define I2C_MASTER_RX_BUF_DISABLE 0   
 
-#define TAG "SENSORS"
-
 esp_err_t i2c_master_init(void);
 esp_err_t i2c_master_sensor_sht30(float *tempC, float *humidity);
 esp_err_t i2c_master_sensor_bh1750(float *luminocity);

@@ -26,9 +26,10 @@
 #include "board.h"
 #include "sensors.h"
 
+#define TAG "MAIN"
+
 SemaphoreHandle_t print_mux = NULL;
 
-#define TAG "MAIN"
 #define CID_ESP     0x02E5
 
 /* I2C refresh interval */
@@ -669,6 +670,43 @@ static void i2c_test_sht30(void *arg)
     vTaskDelete(NULL);
 }
 
+void ux_signal_unprovisioned() {
+    board_rgb_led_control(RED);
+}
+
+void ux_signal_provisioned() {
+    board_rgb_led_control(GREEN);
+}
+
+void ux_signal_provisioning_state() {
+    if (esp_ble_mesh_node_is_provisioned()) {        
+        ux_signal_provisioned();
+    } else {
+        ux_signal_unprovisioned();
+    }
+}
+
+void ux_signal_reset_initiative_started() {
+    board_rgb_led_control(ORANGE);
+}
+
+void long_press_callback(int how_long_ns) {
+    int how_long_s = how_long_ns / 1000000;
+    if (how_long_s > 5) {
+        ESP_LOGI(TAG, "Resetting mesh initiative requested");
+        esp_ble_mesh_node_local_reset();
+        ux_signal_provisioning_state();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        esp_restart();
+    } else if (how_long_ns == 0) {
+        ESP_LOGI(TAG, "Resetting mesh initiative started");
+        ux_signal_reset_initiative_started();
+    } else {
+        ESP_LOGI(TAG, "Resetting mesh initiative given up");
+        ux_signal_provisioning_state();
+    }
+}
+
 void app_main(void)
 {
     esp_err_t err;
@@ -682,7 +720,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
-    board_init();
+    board_init(long_press_callback);
 
     err = bluetooth_init();
     if (err) {
@@ -703,12 +741,8 @@ void app_main(void)
     /* I2C sensor readings*/
     print_mux = xSemaphoreCreateMutex();
     ESP_ERROR_CHECK(i2c_master_init());
-    xTaskCreate(i2c_test_bh1750, "i2c_test_task_0", 1024 * 2, (void *)0, 10, NULL);
-    xTaskCreate(i2c_test_sht30, "i2c_test_task_1", 1024 * 2, (void *)1, 10, NULL);
+    xTaskCreate(i2c_test_bh1750, "i2c_bh1750", 1024 * 2, (void *)0, 10, NULL);
+    xTaskCreate(i2c_test_sht30, "i2c_sht30", 1024 * 2, (void *)1, 10, NULL);
 
-    if (esp_ble_mesh_node_is_provisioned()) {        
-        board_rgb_led_control(GREEN);
-    } else {
-        board_rgb_led_control(RED);
-    }
+    ux_signal_provisioning_state();
 }
