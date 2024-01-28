@@ -14,8 +14,8 @@ typedef enum rgb_led_color {
   RED = 0x001100,
   GREEN = 0x000011,
   BLUE = 0x110000,
-  ORANGE = 0x001111,
-  VIOLET = 0x111100
+  ORANGE = 0x00FF11,
+  INTENSIVE_WHITE = 0xFFFFFF
 } rgb_led_color_t;
 
 void rgb_led_enable();

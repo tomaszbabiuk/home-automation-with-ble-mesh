@@ -21,12 +21,37 @@
 #include "esp_ble_mesh_config_model_api.h"
 #include "esp_ble_mesh_sensor_model_api.h"
 #include "esp_ble_mesh_time_scene_model_api.h"
+#include "esp_ble_mesh_health_model_api.h"
 
 #include "ble_mesh_example_init.h"
 #include "board.h"
 #include "sensors.h"
 
 #define TAG "MAIN"
+
+void ux_attention() {
+    board_rgb_led_control(INTENSIVE_WHITE);
+}
+
+void ux_signal_unprovisioned() {
+    board_rgb_led_control(RED);
+}
+
+void ux_signal_provisioned() {
+    board_rgb_led_control(GREEN);
+}
+
+void ux_signal_provisioning_state() {
+    if (esp_ble_mesh_node_is_provisioned()) {        
+        ux_signal_provisioned();
+    } else {
+        ux_signal_unprovisioned();
+    }
+}
+
+void ux_signal_reset_initiative_started() {
+    board_rgb_led_control(ORANGE);
+}
 
 SemaphoreHandle_t print_mux = NULL;
 
@@ -72,6 +97,7 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .net_transmit = ESP_BLE_MESH_TRANSMIT(2, 20),
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
+
 
 NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_lum, 4);
 NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_hum, 2);
@@ -130,8 +156,16 @@ static esp_ble_mesh_sensor_setup_srv_t sensor_setup_server = {
     .states = sensor_states,
 };
 
+uint8_t test_ids[1] = {0x00};
+ESP_BLE_MESH_MODEL_PUB_DEFINE(health_pub, 2 + 11, ROLE_NODE);
+static esp_ble_mesh_health_srv_t health_server = {
+    .health_test.id_count = 1,
+    .health_test.test_ids = test_ids,
+};
+
 static esp_ble_mesh_model_t root_models[] = {
     ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
+    ESP_BLE_MESH_MODEL_HEALTH_SRV(&health_server, &health_pub),
     ESP_BLE_MESH_MODEL_SENSOR_SRV(&sensor_pub, &sensor_server),
     ESP_BLE_MESH_MODEL_SENSOR_SETUP_SRV(&sensor_setup_pub, &sensor_setup_server),
 };
@@ -520,6 +554,23 @@ static void example_ble_mesh_send_sensor_series_status(esp_ble_mesh_sensor_serve
     }
 }
 
+static void example_ble_mesh_health_server_cb(esp_ble_mesh_health_server_cb_event_t event,
+                                                 esp_ble_mesh_health_server_cb_param_t *param) {
+    switch (event) {
+        case ESP_BLE_MESH_HEALTH_SERVER_ATTENTION_ON_EVT:
+            ESP_LOGI(TAG, "Attention ON");
+            ux_attention();
+            break;
+        case ESP_BLE_MESH_HEALTH_SERVER_ATTENTION_OFF_EVT:
+            ESP_LOGI(TAG, "Attention OFF");
+            ux_signal_provisioning_state();
+            break;
+        default:
+            ESP_LOGI(TAG, "Event not supported");
+    }
+
+}
+
 static void example_ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_event_t event,
                                               esp_ble_mesh_sensor_server_cb_param_t *param)
 {
@@ -596,6 +647,7 @@ static esp_err_t ble_mesh_init(void)
     esp_ble_mesh_register_prov_callback(example_ble_mesh_provisioning_cb);
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
     esp_ble_mesh_register_sensor_server_callback(example_ble_mesh_sensor_server_cb);
+    esp_ble_mesh_register_health_server_callback(example_ble_mesh_health_server_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);
     if (err != ESP_OK) {
@@ -618,10 +670,8 @@ static void i2c_test_bh1750(void *arg)
 {
     int ret;
     int task_idx = (int)arg;
-    int cnt = 0;
     float luminocityF;
     while (1) {
-        ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
         ret = i2c_master_sensor_bh1750(&luminocityF);
         xSemaphoreTake(print_mux, portMAX_DELAY);
         if (ret == ESP_ERR_TIMEOUT) {
@@ -644,9 +694,7 @@ static void i2c_test_sht30(void *arg)
 {
     int ret;
     int task_idx = (int)arg;
-    int cnt = 0;
     while (1) {
-        ESP_LOGI(TAG, "TASK[%d] test cnt: %d", task_idx, cnt++);
         float tempCF, humidityF;
         ret = i2c_master_sensor_sht30(&tempCF, &humidityF);
         xSemaphoreTake(print_mux, portMAX_DELAY);
@@ -664,30 +712,9 @@ static void i2c_test_sht30(void *arg)
         }
         xSemaphoreGive(print_mux);
         vTaskDelay((DELAY_TIME_BETWEEN_ITEMS_MS * (task_idx + 1)) / portTICK_PERIOD_MS);
-        //---------------------------------------------------
     }
     vSemaphoreDelete(print_mux);
     vTaskDelete(NULL);
-}
-
-void ux_signal_unprovisioned() {
-    board_rgb_led_control(RED);
-}
-
-void ux_signal_provisioned() {
-    board_rgb_led_control(GREEN);
-}
-
-void ux_signal_provisioning_state() {
-    if (esp_ble_mesh_node_is_provisioned()) {        
-        ux_signal_provisioned();
-    } else {
-        ux_signal_unprovisioned();
-    }
-}
-
-void ux_signal_reset_initiative_started() {
-    board_rgb_led_control(ORANGE);
 }
 
 void long_press_callback(int how_long_ns) {
