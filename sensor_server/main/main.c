@@ -24,34 +24,11 @@
 #include "esp_ble_mesh_health_model_api.h"
 
 #include "ble_mesh_example_init.h"
+#include "ux.h"
 #include "board.h"
 #include "sensors.h"
 
 #define TAG "MAIN"
-
-void ux_attention() {
-    board_rgb_led_control(INTENSIVE_WHITE);
-}
-
-void ux_signal_unprovisioned() {
-    board_rgb_led_control(RED);
-}
-
-void ux_signal_provisioned() {
-    board_rgb_led_control(GREEN);
-}
-
-void ux_signal_provisioning_state() {
-    if (esp_ble_mesh_node_is_provisioned()) {        
-        ux_signal_provisioned();
-    } else {
-        ux_signal_unprovisioned();
-    }
-}
-
-void ux_signal_reset_initiative_started() {
-    board_rgb_led_control(ORANGE);
-}
 
 SemaphoreHandle_t print_mux = NULL;
 
@@ -67,9 +44,9 @@ SemaphoreHandle_t print_mux = NULL;
 #define BT_MESH_PROP_ID_MOTION_SENSED                       0x0042
 
 // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/libraries/bluetooth_services/mesh/sensor_types.html#bt-mesh-sensor-types-readme
-static uint32_t luminocityToReport = 1000; // = 10 lux
-static uint16_t humidityToReport = 50;     // = 0.5 %
-static uint8_t temperatureToReport = 40;   // = 20 C
+static uint32_t luminocityToReport = 0; // = 10 lux
+static uint16_t humidityToReport = 0;     // = 0.5 %
+static uint8_t temperatureToReport = 0;   // = 20 C
 
 #define SENSOR_POSITIVE_TOLERANCE   ESP_BLE_MESH_SENSOR_UNSPECIFIED_POS_TOLERANCE
 #define SENSOR_NEGATIVE_TOLERANCE   ESP_BLE_MESH_SENSOR_UNSPECIFIED_NEG_TOLERANCE
@@ -189,7 +166,7 @@ static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32
     ESP_LOGI(TAG, "net_idx 0x%03x, addr 0x%04x", net_idx, addr);
     ESP_LOGI(TAG, "flags 0x%02x, iv_index 0x%08" PRIx32, flags, iv_index);
     
-    board_rgb_led_control(GREEN);
+    ux_signal_provisioned(esp_ble_mesh_node_is_provisioned());
 
     /* Initialize the indoor and outdoor temperatures for each sensor.  */
     net_buf_simple_add_le32(&sensor_data_lum, luminocityToReport);
@@ -563,7 +540,7 @@ static void example_ble_mesh_health_server_cb(esp_ble_mesh_health_server_cb_even
             break;
         case ESP_BLE_MESH_HEALTH_SERVER_ATTENTION_OFF_EVT:
             ESP_LOGI(TAG, "Attention OFF");
-            ux_signal_provisioning_state();
+            ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
             break;
         default:
             ESP_LOGI(TAG, "Event not supported");
@@ -669,7 +646,6 @@ static esp_err_t ble_mesh_init(void)
 static void i2c_test_bh1750(void *arg)
 {
     int ret;
-    int task_idx = (int)arg;
     float luminocityF;
     while (1) {
         ret = i2c_master_sensor_bh1750(&luminocityF);
@@ -684,7 +660,7 @@ static void i2c_test_bh1750(void *arg)
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
         xSemaphoreGive(print_mux);
-        vTaskDelay((DELAY_TIME_BETWEEN_ITEMS_MS * (task_idx + 1)) / portTICK_PERIOD_MS);
+        vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_PERIOD_MS);
     }
     vSemaphoreDelete(print_mux);
     vTaskDelete(NULL);
@@ -693,7 +669,6 @@ static void i2c_test_bh1750(void *arg)
 static void i2c_test_sht30(void *arg)
 {
     int ret;
-    int task_idx = (int)arg;
     while (1) {
         float tempCF, humidityF;
         ret = i2c_master_sensor_sht30(&tempCF, &humidityF);
@@ -711,7 +686,7 @@ static void i2c_test_sht30(void *arg)
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
         xSemaphoreGive(print_mux);
-        vTaskDelay((DELAY_TIME_BETWEEN_ITEMS_MS * (task_idx + 1)) / portTICK_PERIOD_MS);
+        vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_PERIOD_MS);
     }
     vSemaphoreDelete(print_mux);
     vTaskDelete(NULL);
@@ -722,7 +697,7 @@ void long_press_callback(int how_long_ns) {
     if (how_long_s > 5) {
         ESP_LOGI(TAG, "Resetting mesh initiative requested");
         esp_ble_mesh_node_local_reset();
-        ux_signal_provisioning_state();
+        ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         esp_restart();
     } else if (how_long_ns == 0) {
@@ -730,15 +705,22 @@ void long_press_callback(int how_long_ns) {
         ux_signal_reset_initiative_started();
     } else {
         ESP_LOGI(TAG, "Resetting mesh initiative given up");
-        ux_signal_provisioning_state();
+        ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
     }
 }
 
 void app_main(void)
 {
+    /* I2C sensor readings*/
+    print_mux = xSemaphoreCreateMutex();
+    ESP_ERROR_CHECK(i2c_master_init());
+    xTaskCreate(i2c_test_bh1750, "i2c_bh1750", 1024 * 2, (void *)0, 10, NULL);
+    xTaskCreate(i2c_test_sht30, "i2c_sht30", 1024 * 2, (void *)1, 10, NULL);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
     esp_err_t err;
 
-    ESP_LOGI(TAG, "Initializing...");
+    ESP_LOGI(TAG, "Initializing mesh ...");
 
     err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
@@ -765,11 +747,5 @@ void app_main(void)
 
     bt_mesh_set_device_name("SENSOR-SERVER");
 
-    /* I2C sensor readings*/
-    print_mux = xSemaphoreCreateMutex();
-    ESP_ERROR_CHECK(i2c_master_init());
-    xTaskCreate(i2c_test_bh1750, "i2c_bh1750", 1024 * 2, (void *)0, 10, NULL);
-    xTaskCreate(i2c_test_sht30, "i2c_sht30", 1024 * 2, (void *)1, 10, NULL);
-
-    ux_signal_provisioning_state();
+    ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
 }
