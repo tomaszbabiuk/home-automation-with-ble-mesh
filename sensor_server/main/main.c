@@ -44,9 +44,9 @@ SemaphoreHandle_t print_mux = NULL;
 #define BT_MESH_PROP_ID_MOTION_SENSED                       0x0042
 
 // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/libraries/bluetooth_services/mesh/sensor_types.html#bt-mesh-sensor-types-readme
-static uint32_t luminocityToReport = 0; // = 10 lux
-static uint16_t humidityToReport = 0;     // = 0.5 %
-static uint8_t temperatureToReport = 0;   // = 20 C
+static uint32_t luminocityToReport = 0;
+static uint16_t humidityToReport = 0;
+static uint8_t temperatureToReport = 0;
 
 #define SENSOR_POSITIVE_TOLERANCE   ESP_BLE_MESH_SENSOR_UNSPECIFIED_POS_TOLERANCE
 #define SENSOR_NEGATIVE_TOLERANCE   ESP_BLE_MESH_SENSOR_UNSPECIFIED_NEG_TOLERANCE

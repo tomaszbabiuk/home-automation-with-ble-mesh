@@ -60,3 +60,4 @@ heating_manifold/build
 recuperator/build
 generic_gpio/build
 hormone_client/build
+hello_ld2410/build
