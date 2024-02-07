@@ -19,22 +19,15 @@
 #include "esp_ble_mesh_networking_api.h"
 #include "esp_ble_mesh_config_model_api.h"
 #include "esp_ble_mesh_generic_model_api.h"
+#include "esp_ble_mesh_sensor_model_api.h"
 
 #include "board.h"
 #include "ble_mesh_example_init.h"
 #include "ble_mesh_example_nvs.h"
-#include "esp_ble_mesh_defs.h"
 
 #define TAG "EXAMPLE"
 
 #define CID_ESP 0x02E5
-
-#define ESP_BLE_MESH_VND_MODEL_ID_CLIENT    0x0000
-#define ESP_BLE_MESH_VND_MODEL_ID_SERVER    0x0001
-
-#define ESP_BLE_MESH_VND_MODEL_OP_SEND      ESP_BLE_MESH_MODEL_OP_3(0x00, CID_ESP)
-#define ESP_BLE_MESH_VND_MODEL_OP_STATUS    ESP_BLE_MESH_MODEL_OP_3(0x01, CID_ESP)
-
 
 static uint8_t dev_uuid[16] = { 0xdd, 0xdd };
 
@@ -54,6 +47,7 @@ static nvs_handle_t NVS_HANDLE;
 static const char * NVS_KEY = "onoff_client";
 
 static esp_ble_mesh_client_t onoff_client;
+static esp_ble_mesh_client_t sensor_client;
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -74,34 +68,16 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
 
-static const esp_ble_mesh_client_op_pair_t vnd_op_pair[] = {
-    { ESP_BLE_MESH_VND_MODEL_OP_SEND, ESP_BLE_MESH_VND_MODEL_OP_STATUS },
-};
-
-static esp_ble_mesh_client_t vendor_client = {
-    .op_pair_size = ARRAY_SIZE(vnd_op_pair),
-    .op_pair = vnd_op_pair,
-};
-
 ESP_BLE_MESH_MODEL_PUB_DEFINE(onoff_cli_pub, 2 + 1, ROLE_NODE);
 
 static esp_ble_mesh_model_t root_models[] = {
     ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
     ESP_BLE_MESH_MODEL_GEN_ONOFF_CLI(&onoff_cli_pub, &onoff_client),
-};
-
-static esp_ble_mesh_model_op_t vnd_op[] = {
-    ESP_BLE_MESH_MODEL_OP(ESP_BLE_MESH_VND_MODEL_OP_STATUS, 2),
-    ESP_BLE_MESH_MODEL_OP_END,
-};
-
-static esp_ble_mesh_model_t vnd_models[] = {
-    ESP_BLE_MESH_VENDOR_MODEL(CID_ESP, ESP_BLE_MESH_VND_MODEL_ID_CLIENT,
-    vnd_op, NULL, &vendor_client),
+    ESP_BLE_MESH_MODEL_SENSOR_CLI(NULL, &sensor_client),
 };
 
 static esp_ble_mesh_elem_t elements[] = {
-    ESP_BLE_MESH_ELEMENT(0, root_models, vnd_models),
+    ESP_BLE_MESH_ELEMENT(0, root_models, ESP_BLE_MESH_MODEL_NONE),
 };
 
 static esp_ble_mesh_comp_t composition = {
@@ -151,15 +127,6 @@ static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32
     ESP_LOGI(TAG, "flags: 0x%02x, iv_index: 0x%08" PRIx32, flags, iv_index);
     board_led_operation(LED_G, LED_OFF);
     store.net_idx = net_idx;
-    /* mesh_example_info_store() shall not be invoked here, because if the device
-     * is restarted and goes into a provisioned state, then the following events
-     * will come:
-     * 1st: ESP_BLE_MESH_NODE_PROV_COMPLETE_EVT
-     * 2nd: ESP_BLE_MESH_PROV_REGISTER_COMP_EVT
-     * So the store.net_idx will be updated here, and if we store the mesh example
-     * info here, the wrong app_idx (initialized with 0xFFFF) will be stored in nvs
-     * just before restoring it.
-     */
 }
 
 static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
@@ -223,33 +190,6 @@ void example_ble_mesh_send_gen_onoff_set(void)
     }
 
     store.onoff = !store.onoff;
-    mesh_example_info_store(); /* Store proper mesh example info */
-}
-
-void example_ble_mesh_send_vendor_message(bool resend)
-{
-    esp_ble_mesh_msg_ctx_t ctx = {0};
-    uint32_t opcode;
-    esp_err_t err;
-
-    ctx.net_idx = store.net_idx;
-    ctx.app_idx = store.app_idx;
-    ctx.addr = 0xFFFF;   /* to all nodes */
-    ctx.send_ttl = 3;
-    ctx.send_rel = false;
-    opcode = ESP_BLE_MESH_VND_MODEL_OP_SEND;
-
-    if (resend == false) {
-        store.tid++;
-    }
-
-    err = esp_ble_mesh_client_model_send_msg(vendor_client.model, &ctx, opcode,
-            sizeof(store.tid), (uint8_t *)&store.tid, 0, true, ROLE_NODE);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to send vendor message 0x%06" PRIx32, opcode);
-        return;
-    }
-
     mesh_example_info_store(); /* Store proper mesh example info */
 }
 
@@ -318,6 +258,46 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
     }
 }
 
+static void example_ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_event_t event,
+                                              esp_ble_mesh_sensor_client_cb_param_t *param)
+{
+    ESP_LOGI(TAG, "Sensor client, event %u, addr 0x%04x", event, param->params->ctx.addr);
+
+    if (param->error_code) {
+        ESP_LOGE(TAG, "Send sensor client message failed (err %d)", param->error_code);
+        return;
+    }
+
+    if (event == ESP_BLE_MESH_SENSOR_CLIENT_PUBLISH_EVT) {
+        uint32_t op_code = param->params->ctx.recv_op;
+        if (op_code == ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS) {
+            if (param->status_cb.sensor_status.marshalled_sensor_data->len) {
+                ESP_LOG_BUFFER_HEX("Sensor Data", param->status_cb.sensor_status.marshalled_sensor_data->data,
+                    param->status_cb.sensor_status.marshalled_sensor_data->len);
+                uint8_t *data = param->status_cb.sensor_status.marshalled_sensor_data->data;
+                uint16_t length = 0;
+                for (; length < param->status_cb.sensor_status.marshalled_sensor_data->len; ) {
+                    uint8_t fmt = ESP_BLE_MESH_GET_SENSOR_DATA_FORMAT(data);
+                    uint8_t data_len = ESP_BLE_MESH_GET_SENSOR_DATA_LENGTH(data, fmt);
+                    uint16_t prop_id = ESP_BLE_MESH_GET_SENSOR_DATA_PROPERTY_ID(data, fmt);
+                    uint8_t mpid_len = (fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A ?
+                                        ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN : ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN);
+                    ESP_LOGI(TAG, "Format %s, length 0x%02x, Sensor Property ID 0x%04x",
+                        fmt == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A ? "A" : "B", data_len, prop_id);
+                    if (data_len != ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
+                        ESP_LOG_BUFFER_HEX("Sensor Data", data + mpid_len, data_len + 1);
+                        length += mpid_len + data_len + 1;
+                        data += mpid_len + data_len + 1;
+                    } else {
+                        length += mpid_len;
+                        data += mpid_len;
+                    }
+                }
+            }
+        }
+    }
+}
+
 static esp_err_t ble_mesh_init(void)
 {
     esp_err_t err = ESP_OK;
@@ -325,6 +305,7 @@ static esp_err_t ble_mesh_init(void)
     esp_ble_mesh_register_prov_callback(example_ble_mesh_provisioning_cb);
     esp_ble_mesh_register_generic_client_callback(example_ble_mesh_generic_client_cb);
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
+    esp_ble_mesh_register_sensor_client_callback(example_ble_mesh_sensor_client_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);
     if (err != ESP_OK) {
@@ -379,6 +360,4 @@ void app_main(void)
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
-
-     bt_mesh_set_device_name("VND-CLIENT");
 }

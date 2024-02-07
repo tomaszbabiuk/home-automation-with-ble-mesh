@@ -1,13 +1,9 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
+  "idf.port": "/dev/cu.usbserial-10",
   "idf.adapterTargetName": "esp32c3",
   "idf.openOcdConfigs": [
     "board/esp32c3-bridge.cfg"
   ],
-  "idf.portWin": "COM7",
-  "idf.flashType": "UART",
-  "files.associations": {
-    "board.h": "c",
-    "iot_button.h": "c"
-  }
+  "idf.flashType": "UART"
 }

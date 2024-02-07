@@ -617,6 +617,43 @@ static void example_ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_even
     }
 }
 
+static void publish_test() {
+    ESP_LOGI(TAG, "Publishing real sensor data");
+
+    uint8_t *status = NULL;
+    uint16_t buf_size = 0;
+    uint16_t length = 0;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
+        esp_ble_mesh_sensor_state_t *state = &sensor_states[i];
+        if (state->sensor_data.length == ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
+            buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN;
+        } else {
+            /* Use "state->sensor_data.length + 1" because the length of sensor data is zero-based. */
+            if (state->sensor_data.format == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A) {
+                buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN + state->sensor_data.length + 1;
+            } else {
+                buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN + state->sensor_data.length + 1;
+            }
+        }
+    }
+
+    status = calloc(1, buf_size);
+    if (!status) {
+        ESP_LOGE(TAG, "No memory for sensor status!");
+        return;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
+        length += example_ble_mesh_get_sensor_data(&sensor_states[i], status + length);
+    }
+
+    ESP_LOG_BUFFER_HEX("Sensor Data", status, length);
+    esp_ble_mesh_model_publish(sensor_server.model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS, length, status, ROLE_NODE);
+
+}
+
 static esp_err_t ble_mesh_init(void)
 {
     esp_err_t err;
@@ -703,6 +740,8 @@ void long_press_callback(int how_long_ns) {
     } else if (how_long_ns == 0) {
         ESP_LOGI(TAG, "Resetting mesh initiative started");
         ux_signal_reset_initiative_started();
+
+        publish_test();
     } else {
         ESP_LOGI(TAG, "Resetting mesh initiative given up");
         ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
