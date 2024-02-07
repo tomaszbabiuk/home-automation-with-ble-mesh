@@ -1,13 +1,9 @@
 {
   "C_Cpp.intelliSenseEngine": "default",
+  "idf.port": "/dev/cu.usbserial-10",
   "idf.adapterTargetName": "esp32c3",
   "idf.openOcdConfigs": [
     "board/esp32c3-bridge.cfg"
   ],
-  "files.associations": {
-    "esp_ble_mesh_defs.h": "c"
-  },
-  "idf.flashType": "UART",
-  "idf.portWin": "COM7",
-  "idf.port": "/dev/cu.usbserial-10"
+  "idf.flashType": "UART"
 }

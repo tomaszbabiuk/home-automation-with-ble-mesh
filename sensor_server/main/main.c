@@ -100,7 +100,7 @@ static esp_ble_mesh_sensor_state_t sensor_states[3] = {
         .descriptor.measure_period = SENSOR_MEASURE_PERIOD,
         .descriptor.update_interval = SENSOR_UPDATE_INTERVAL,
         .sensor_data.format = ESP_BLE_MESH_SENSOR_DATA_FORMAT_A,
-        .sensor_data.length = 1, /* 0 represents the length is 1 */
+        .sensor_data.length = 1, /* 1 represents the length is 2 */
         .sensor_data.raw_value = &sensor_data_hum,
     },
     [2] = {
