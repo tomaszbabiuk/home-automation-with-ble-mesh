@@ -408,15 +408,7 @@ static uint16_t example_ble_mesh_get_sensor_data(esp_ble_mesh_sensor_state_t *st
     return (mpid_len + data_len);
 }
 
-static void example_ble_mesh_send_sensor_status(esp_ble_mesh_sensor_server_cb_param_t *param)
-{
-    uint8_t *status = NULL;
-    uint16_t buf_size = 0;
-    uint16_t length = 0;
-    uint32_t mpid = 0;
-    esp_err_t err;
-    int i;
-
+static uint16_t calculate_sensor_report_buffer_size() {
     /**
      * Sensor Data state from Mesh Model Spec
      * |--------Field--------|-Size (octets)-|------------------------Notes-------------------------|
@@ -428,12 +420,13 @@ static void example_ble_mesh_send_sensor_status(esp_ble_mesh_sensor_server_cb_pa
      * |----Property ID n----|-------2-------|--ID of the nth device property of the sensor---------|
      * |-----Raw Value n-----|----variable---|--Raw Value field defined by the nth device property--|
      */
-    for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
+    int i;
+    uint16_t buf_size = 0;
+        for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
         esp_ble_mesh_sensor_state_t *state = &sensor_states[i];
         if (state->sensor_data.length == ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
             buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN;
         } else {
-            /* Use "state->sensor_data.length + 1" because the length of sensor data is zero-based. */
             if (state->sensor_data.format == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A) {
                 buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN + state->sensor_data.length + 1;
             } else {
@@ -441,6 +434,18 @@ static void example_ble_mesh_send_sensor_status(esp_ble_mesh_sensor_server_cb_pa
             }
         }
     }
+
+    return buf_size;
+}
+
+static void example_ble_mesh_send_sensor_status(esp_ble_mesh_sensor_server_cb_param_t *param)
+{
+    uint8_t *status = NULL;
+    uint16_t buf_size = calculate_sensor_report_buffer_size();
+    uint16_t length = 0;
+    uint32_t mpid = 0;
+    esp_err_t err;
+    int i;
 
     status = calloc(1, buf_size);
     if (!status) {
@@ -618,26 +623,10 @@ static void example_ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_even
 }
 
 static void publish_test() {
-    ESP_LOGI(TAG, "Publishing real sensor data");
-
     uint8_t *status = NULL;
-    uint16_t buf_size = 0;
+    uint16_t buf_size = calculate_sensor_report_buffer_size();
     uint16_t length = 0;
     int i;
-
-    for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
-        esp_ble_mesh_sensor_state_t *state = &sensor_states[i];
-        if (state->sensor_data.length == ESP_BLE_MESH_SENSOR_DATA_ZERO_LEN) {
-            buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN;
-        } else {
-            /* Use "state->sensor_data.length + 1" because the length of sensor data is zero-based. */
-            if (state->sensor_data.format == ESP_BLE_MESH_SENSOR_DATA_FORMAT_A) {
-                buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_A_MPID_LEN + state->sensor_data.length + 1;
-            } else {
-                buf_size += ESP_BLE_MESH_SENSOR_DATA_FORMAT_B_MPID_LEN + state->sensor_data.length + 1;
-            }
-        }
-    }
 
     status = calloc(1, buf_size);
     if (!status) {
@@ -651,7 +640,6 @@ static void publish_test() {
 
     ESP_LOG_BUFFER_HEX("Sensor Data", status, length);
     esp_ble_mesh_model_publish(sensor_server.model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS, length, status, ROLE_NODE);
-
 }
 
 static esp_err_t ble_mesh_init(void)
