@@ -16,8 +16,8 @@
 #include "ble_mesh.h"
 
 #include "ux.h"
-#include "board.h"
 #include "sensors.h"
+#include "ble_mesh_example_init.h"
 
 #define TAG "MAIN"
 
@@ -94,7 +94,6 @@ void long_press_callback(int how_long_ns) {
 
 void app_main(void)
 {
-    /* I2C sensor readings*/
     print_mux = xSemaphoreCreateMutex();
     ESP_ERROR_CHECK(i2c_master_init());
     xTaskCreate(i2c_test_bh1750, "i2c_bh1750", 1024 * 2, (void *)0, 10, NULL);
@@ -112,7 +111,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
-    board_init(long_press_callback);
+    ux_init(long_press_callback);
 
     err = bluetooth_init();
     if (err) {

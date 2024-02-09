@@ -9,8 +9,6 @@
 #include "esp_ble_mesh_time_scene_model_api.h"
 #include "esp_ble_mesh_health_model_api.h"
 
-#include "ble_mesh_example_init.h"
-
 #define CID_ESP     0x02E5
 
 #define BT_MESH_PROP_ID_PRESENT_INDOOR_AMB_TEMP             0x0056

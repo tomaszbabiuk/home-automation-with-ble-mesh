@@ -11,7 +11,8 @@
     "esp_ble_mesh_sensor_model_api.h": "c",
     "rgb_led.h": "c",
     "esp_log.h": "c",
-    "ble_mesh.h": "c"
+    "ble_mesh.h": "c",
+    "ble_mesh_example_init.h": "c"
   },
   "idf.port": "/dev/cu.usbmodem2101"
 }

@@ -1,5 +1,6 @@
-#include <ux.h>
-#include <board.h>
+#include "ux.h"
+#include "board.h"
+#include "digital_input.h"
 
 void ux_attention() {
     board_rgb_led_control(INTENSIVE_WHITE);
@@ -23,4 +24,8 @@ void ux_signal_provisioning_state(bool isProvisioned) {
 
 void ux_signal_reset_initiative_started() {
     board_rgb_led_control(ORANGE);
+}
+
+void ux_init(input_signal_f press_callback) {
+    board_init(press_callback);
 }
