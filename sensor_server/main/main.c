@@ -73,7 +73,7 @@ static void i2c_test_sht30(void *arg)
     vTaskDelete(NULL);
 }
 
-void long_press_callback(int how_long_ns) {
+void press_callback(int how_long_ns) {
     int how_long_s = how_long_ns / 1000000;
     if (how_long_s > 5) {
         ESP_LOGI(TAG, "Resetting mesh initiative requested");
@@ -88,6 +88,18 @@ void long_press_callback(int how_long_ns) {
         ble_mesh_publish_sensors_data();
     } else {
         ESP_LOGI(TAG, "Resetting mesh initiative given up");
+        ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
+    }
+}
+
+void provisioning_complete() {
+    ux_signal_provisioned(esp_ble_mesh_node_is_provisioned());
+}
+
+void attention(bool on) {
+    if (on) {
+        ux_attention();
+    } else {
         ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
     }
 }
@@ -111,7 +123,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
-    ux_init(long_press_callback);
+    ux_init(press_callback);
 
     err = bluetooth_init();
     if (err) {
@@ -120,7 +132,7 @@ void app_main(void)
     }
 
     /* Initialize the Bluetooth Mesh Subsystem */
-    err = ble_mesh_init();
+    err = ble_mesh_init(provisioning_complete, attention);
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }

@@ -22,7 +22,12 @@
 #define SENSOR_MEASURE_PERIOD       ESP_BLE_MESH_SENSOR_NOT_APPL_MEASURE_PERIOD
 #define SENSOR_UPDATE_INTERVAL      ESP_BLE_MESH_SENSOR_NOT_APPL_UPDATE_INTERVAL
 
-esp_err_t ble_mesh_init(void);
+typedef void (*provisioning_complete_f)(void);
+
+typedef void (*attention_changed_f)(bool);
+
+esp_err_t ble_mesh_init(provisioning_complete_f on_provisioning_complete, 
+                        attention_changed_f on_attention_changed);
 
 void ble_mesh_publish_sensors_data();
 

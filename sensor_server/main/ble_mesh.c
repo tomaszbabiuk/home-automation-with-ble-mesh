@@ -6,9 +6,10 @@
 #include <inttypes.h>
 #include "ble_mesh_example_init.h"
 
-#include "ux.h"
-
 #define TAG "BLE"
+
+attention_changed_f attention_changed_callback = NULL;
+provisioning_complete_f provisioning_complete_callback = NULL;
 
 // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/libraries/bluetooth_services/mesh/sensor_types.html#bt-mesh-sensor-types-readme
 static uint32_t luminocityToReport = 0;
@@ -120,20 +121,17 @@ static void ble_mesh_prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flag
     ESP_LOGI(TAG, "net_idx 0x%03x, addr 0x%04x", net_idx, addr);
     ESP_LOGI(TAG, "flags 0x%02x, iv_index 0x%08" PRIx32, flags, iv_index);
     
-    ux_signal_provisioned(esp_ble_mesh_node_is_provisioned());
-
-    /* Initialize the indoor and outdoor temperatures for each sensor.  */
     net_buf_simple_add_le32(&sensor_data_lum, luminocityToReport);
     net_buf_simple_add_le16(&sensor_data_hum, humidityToReport);
     net_buf_simple_add_u8(&sensor_data_temp, temperatureToReport);
+
+    provisioning_complete_callback();
 }
 
 static uint8_t dev_uuid[ESP_BLE_MESH_OCTET16_LEN] = { 0x32, 0x10 };
 static esp_ble_mesh_prov_t provision = {
     .uuid = dev_uuid,
 };
-
-
 
 static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
                                              esp_ble_mesh_prov_cb_param_t *param)
@@ -502,11 +500,11 @@ static void ble_mesh_health_server_cb(esp_ble_mesh_health_server_cb_event_t even
     switch (event) {
         case ESP_BLE_MESH_HEALTH_SERVER_ATTENTION_ON_EVT:
             ESP_LOGI(TAG, "Attention ON");
-            ux_attention();
+            attention_changed_callback(true);
             break;
         case ESP_BLE_MESH_HEALTH_SERVER_ATTENTION_OFF_EVT:
             ESP_LOGI(TAG, "Attention OFF");
-            ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
+            attention_changed_callback(false);
             break;
         default:
             ESP_LOGI(TAG, "Event not supported");
@@ -602,8 +600,12 @@ void ble_mesh_publish_sensors_data() {
     esp_ble_mesh_model_publish(sensor_server.model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS, length, status, ROLE_NODE);
 }
 
-esp_err_t ble_mesh_init(void)
+esp_err_t ble_mesh_init(provisioning_complete_f on_provisioning_complete, 
+                        attention_changed_f on_attention_changed)
 {
+    provisioning_complete_callback = on_provisioning_complete;
+    attention_changed_callback = on_attention_changed;
+
     ble_mesh_get_dev_uuid(dev_uuid);
 
     esp_err_t err;
