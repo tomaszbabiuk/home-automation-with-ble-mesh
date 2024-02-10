@@ -1,4 +1,4 @@
-#include "ble_mesh.h"
+#include "mesh_app.h"
 #include "esp_log.h"
 
 #include <stdio.h>
@@ -116,7 +116,7 @@ static esp_ble_mesh_comp_t composition = {
     .element_count = ARRAY_SIZE(elements),
 };
 
-static void ble_mesh_prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index)
+static void mesh_app_prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index)
 {
     ESP_LOGI(TAG, "net_idx 0x%03x, addr 0x%04x", net_idx, addr);
     ESP_LOGI(TAG, "flags 0x%02x, iv_index 0x%08" PRIx32, flags, iv_index);
@@ -133,7 +133,7 @@ static esp_ble_mesh_prov_t provision = {
     .uuid = dev_uuid,
 };
 
-static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
+static void mesh_app_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
                                              esp_ble_mesh_prov_cb_param_t *param)
 {
     switch (event) {
@@ -153,7 +153,7 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
         break;
     case ESP_BLE_MESH_NODE_PROV_COMPLETE_EVT:
         ESP_LOGI(TAG, "ESP_BLE_MESH_NODE_PROV_COMPLETE_EVT");
-        ble_mesh_prov_complete(param->node_prov_complete.net_idx, param->node_prov_complete.addr,
+        mesh_app_prov_complete(param->node_prov_complete.net_idx, param->node_prov_complete.addr,
             param->node_prov_complete.flags, param->node_prov_complete.iv_index);
         break;
     case ESP_BLE_MESH_NODE_PROV_RESET_EVT:
@@ -167,7 +167,7 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
     }
 }
 
-static void ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,
+static void mesh_app_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,
                                               esp_ble_mesh_cfg_server_cb_param_t *param)
 {
     if (event == ESP_BLE_MESH_CFG_SERVER_STATE_CHANGE_EVT) {
@@ -201,16 +201,7 @@ static void ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,
     }
 }
 
-struct sensor_descriptor {
-    uint16_t sensor_prop_id;
-    uint32_t pos_tolerance:12,
-             neg_tolerance:12,
-             sample_func:8;
-    uint8_t  measure_period;
-    uint8_t  update_interval;
-} __attribute__((packed));
-
-static void ble_mesh_send_sensor_descriptor_status(esp_ble_mesh_sensor_server_cb_param_t *param)
+static void mesh_app_send_sensor_descriptor_status(esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     struct sensor_descriptor descriptor = {0};
     uint8_t *status = NULL;
@@ -278,7 +269,7 @@ send:
     free(status);
 }
 
-static void ble_mesh_send_sensor_cadence_status(esp_ble_mesh_sensor_server_cb_param_t *param)
+static void mesh_app_send_sensor_cadence_status(esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     esp_err_t err;
 
@@ -292,7 +283,7 @@ static void ble_mesh_send_sensor_cadence_status(esp_ble_mesh_sensor_server_cb_pa
     }
 }
 
-static void ble_mesh_send_sensor_settings_status(esp_ble_mesh_sensor_server_cb_param_t *param)
+static void mesh_app_send_sensor_settings_status(esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     esp_err_t err;
 
@@ -306,12 +297,7 @@ static void ble_mesh_send_sensor_settings_status(esp_ble_mesh_sensor_server_cb_p
     }
 }
 
-struct sensor_setting {
-    uint16_t sensor_prop_id;
-    uint16_t sensor_setting_prop_id;
-} __attribute__((packed));
-
-static void ble_mesh_send_sensor_setting_status(esp_ble_mesh_sensor_server_cb_param_t *param)
+static void mesh_app_send_sensor_setting_status(esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     struct sensor_setting setting = {0};
     esp_err_t err;
@@ -334,7 +320,7 @@ static void ble_mesh_send_sensor_setting_status(esp_ble_mesh_sensor_server_cb_pa
     }
 }
 
-static uint16_t ble_mesh_get_sensor_data(esp_ble_mesh_sensor_state_t *state, uint8_t *data)
+static uint16_t mesh_app_get_sensor_data(esp_ble_mesh_sensor_state_t *state, uint8_t *data)
 {
     uint8_t mpid_len = 0, data_len = 0;
     uint32_t mpid = 0;
@@ -367,7 +353,7 @@ static uint16_t ble_mesh_get_sensor_data(esp_ble_mesh_sensor_state_t *state, uin
     return (mpid_len + data_len);
 }
 
-static uint16_t calculate_sensor_report_buffer_size() {
+static uint16_t mesh_app_calculate_sensor_report_buffer_size() {
     /**
      * Sensor Data state from Mesh Model Spec
      * |--------Field--------|-Size (octets)-|------------------------Notes-------------------------|
@@ -397,10 +383,10 @@ static uint16_t calculate_sensor_report_buffer_size() {
     return buf_size;
 }
 
-static void ble_mesh_send_sensor_status(esp_ble_mesh_sensor_server_cb_param_t *param)
+static void mesh_app_send_sensor_status(esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     uint8_t *status = NULL;
-    uint16_t buf_size = calculate_sensor_report_buffer_size();
+    uint16_t buf_size = mesh_app_calculate_sensor_report_buffer_size();
     uint16_t length = 0;
     uint32_t mpid = 0;
     esp_err_t err;
@@ -419,7 +405,7 @@ static void ble_mesh_send_sensor_status(esp_ble_mesh_sensor_server_cb_param_t *p
          * Data field shall contain data for all device properties within a sensor.
          */
         for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
-            length += ble_mesh_get_sensor_data(&sensor_states[i], status + length);
+            length += mesh_app_get_sensor_data(&sensor_states[i], status + length);
         }
         goto send;
     }
@@ -430,7 +416,7 @@ static void ble_mesh_send_sensor_status(esp_ble_mesh_sensor_server_cb_param_t *p
      */
     for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
         if (param->value.get.sensor_data.property_id == sensor_states[i].sensor_property_id) {
-            length = ble_mesh_get_sensor_data(&sensor_states[i], status);
+            length = mesh_app_get_sensor_data(&sensor_states[i], status);
             goto send;
         }
     }
@@ -456,7 +442,7 @@ send:
     free(status);
 }
 
-static void ble_mesh_send_sensor_column_status(esp_ble_mesh_sensor_server_cb_param_t *param)
+static void mesh_app_send_sensor_column_status(esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     uint8_t *status = NULL;
     uint16_t length = 0;
@@ -482,7 +468,7 @@ static void ble_mesh_send_sensor_column_status(esp_ble_mesh_sensor_server_cb_par
     free(status);
 }
 
-static void ble_mesh_send_sensor_series_status(esp_ble_mesh_sensor_server_cb_param_t *param)
+static void mesh_app_send_sensor_series_status(esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     esp_err_t err;
 
@@ -495,7 +481,7 @@ static void ble_mesh_send_sensor_series_status(esp_ble_mesh_sensor_server_cb_par
     }
 }
 
-static void ble_mesh_health_server_cb(esp_ble_mesh_health_server_cb_event_t event,
+static void mesh_app_health_server_cb(esp_ble_mesh_health_server_cb_event_t event,
                                                  esp_ble_mesh_health_server_cb_param_t *param) {
     switch (event) {
         case ESP_BLE_MESH_HEALTH_SERVER_ATTENTION_ON_EVT:
@@ -511,7 +497,7 @@ static void ble_mesh_health_server_cb(esp_ble_mesh_health_server_cb_event_t even
     }
 }
 
-static void ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_event_t event,
+static void mesh_app_sensor_server_cb(esp_ble_mesh_sensor_server_cb_event_t event,
                                               esp_ble_mesh_sensor_server_cb_param_t *param)
 {
     ESP_LOGI(TAG, "Sensor server, event %d, src 0x%04x, dst 0x%04x, model_id 0x%04x",
@@ -522,31 +508,31 @@ static void ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_event_t even
         switch (param->ctx.recv_op) {
         case ESP_BLE_MESH_MODEL_OP_SENSOR_DESCRIPTOR_GET:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_DESCRIPTOR_GET");
-            ble_mesh_send_sensor_descriptor_status(param);
+            mesh_app_send_sensor_descriptor_status(param);
             break;
         case ESP_BLE_MESH_MODEL_OP_SENSOR_CADENCE_GET:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_CADENCE_GET");
-            ble_mesh_send_sensor_cadence_status(param);
+            mesh_app_send_sensor_cadence_status(param);
             break;
         case ESP_BLE_MESH_MODEL_OP_SENSOR_SETTINGS_GET:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_SETTINGS_GET");
-            ble_mesh_send_sensor_settings_status(param);
+            mesh_app_send_sensor_settings_status(param);
             break;
         case ESP_BLE_MESH_MODEL_OP_SENSOR_SETTING_GET:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_SETTINGS_GET");
-            ble_mesh_send_sensor_setting_status(param);
+            mesh_app_send_sensor_setting_status(param);
             break;
         case ESP_BLE_MESH_MODEL_OP_SENSOR_GET:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_GET");
-            ble_mesh_send_sensor_status(param);
+            mesh_app_send_sensor_status(param);
             break;
         case ESP_BLE_MESH_MODEL_OP_SENSOR_COLUMN_GET:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_COLUMN_GET");
-            ble_mesh_send_sensor_column_status(param);
+            mesh_app_send_sensor_column_status(param);
             break;
         case ESP_BLE_MESH_MODEL_OP_SENSOR_SERIES_GET:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_SERIES_GET");
-            ble_mesh_send_sensor_series_status(param);
+            mesh_app_send_sensor_series_status(param);
             break;
         default:
             ESP_LOGE(TAG, "Unknown Sensor Get opcode 0x%04" PRIx32, param->ctx.recv_op);
@@ -557,14 +543,14 @@ static void ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_event_t even
         switch (param->ctx.recv_op) {
         case ESP_BLE_MESH_MODEL_OP_SENSOR_CADENCE_SET:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_CADENCE_SET");
-            ble_mesh_send_sensor_cadence_status(param);
+            mesh_app_send_sensor_cadence_status(param);
             break;
         case ESP_BLE_MESH_MODEL_OP_SENSOR_CADENCE_SET_UNACK:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_CADENCE_SET_UNACK");
             break;
         case ESP_BLE_MESH_MODEL_OP_SENSOR_SETTING_SET:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_SETTING_SET");
-            ble_mesh_send_sensor_setting_status(param);
+            mesh_app_send_sensor_setting_status(param);
             break;
         case ESP_BLE_MESH_MODEL_OP_SENSOR_SETTING_SET_UNACK:
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_SENSOR_SETTING_SET_UNACK");
@@ -580,9 +566,9 @@ static void ble_mesh_sensor_server_cb(esp_ble_mesh_sensor_server_cb_event_t even
     }
 }
 
-void ble_mesh_publish_sensors_data() {
+void mesh_app_publish_sensors_data() {
     uint8_t *status = NULL;
-    uint16_t buf_size = calculate_sensor_report_buffer_size();
+    uint16_t buf_size = mesh_app_calculate_sensor_report_buffer_size();
     uint16_t length = 0;
     int i;
 
@@ -593,14 +579,14 @@ void ble_mesh_publish_sensors_data() {
     }
 
     for (i = 0; i < ARRAY_SIZE(sensor_states); i++) {
-        length += ble_mesh_get_sensor_data(&sensor_states[i], status + length);
+        length += mesh_app_get_sensor_data(&sensor_states[i], status + length);
     }
 
     ESP_LOG_BUFFER_HEX("Sensor Data", status, length);
     esp_ble_mesh_model_publish(sensor_server.model, ESP_BLE_MESH_MODEL_OP_SENSOR_STATUS, length, status, ROLE_NODE);
 }
 
-esp_err_t ble_mesh_init(provisioning_complete_f on_provisioning_complete, 
+esp_err_t mesh_app_init(provisioning_complete_f on_provisioning_complete, 
                         attention_changed_f on_attention_changed)
 {
     provisioning_complete_callback = on_provisioning_complete;
@@ -610,10 +596,10 @@ esp_err_t ble_mesh_init(provisioning_complete_f on_provisioning_complete,
 
     esp_err_t err;
 
-    esp_ble_mesh_register_prov_callback(ble_mesh_provisioning_cb);
-    esp_ble_mesh_register_config_server_callback(ble_mesh_config_server_cb);
-    esp_ble_mesh_register_sensor_server_callback(ble_mesh_sensor_server_cb);
-    esp_ble_mesh_register_health_server_callback(ble_mesh_health_server_cb);
+    esp_ble_mesh_register_prov_callback(mesh_app_provisioning_cb);
+    esp_ble_mesh_register_config_server_callback(mesh_app_config_server_cb);
+    esp_ble_mesh_register_sensor_server_callback(mesh_app_sensor_server_cb);
+    esp_ble_mesh_register_health_server_callback(mesh_app_health_server_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);
     if (err != ESP_OK) {
@@ -632,17 +618,17 @@ esp_err_t ble_mesh_init(provisioning_complete_f on_provisioning_complete,
     return ESP_OK;
 }
 
-void ble_mesh_update_temperature(float new_value) {
+void mesh_app_update_temperature(float new_value) {
     int8_t tempC = new_value * 2;
     *sensor_data_temp.data = tempC;
 }
 
-void ble_mesh_update_humidity(float new_value) {
+void mesh_app_update_humidity(float new_value) {
     uint16_t* humidity = (uint16_t*)sensor_data_hum.data;
     *humidity = new_value * 100;
 }
 
-void ble_mesh_update_luminocity(float new_value) {
+void mesh_app_update_luminocity(float new_value) {
     uint32_t* luminocity = (uint32_t*)sensor_data_lum.data;
     *luminocity = new_value * 100;
 }

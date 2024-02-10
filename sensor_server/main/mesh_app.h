@@ -26,13 +26,27 @@ typedef void (*provisioning_complete_f)(void);
 
 typedef void (*attention_changed_f)(bool);
 
-esp_err_t ble_mesh_init(provisioning_complete_f on_provisioning_complete, 
+struct sensor_setting {
+    uint16_t sensor_prop_id;
+    uint16_t sensor_setting_prop_id;
+} __attribute__((packed));
+
+struct sensor_descriptor {
+    uint16_t sensor_prop_id;
+    uint32_t pos_tolerance:12,
+             neg_tolerance:12,
+             sample_func:8;
+    uint8_t  measure_period;
+    uint8_t  update_interval;
+} __attribute__((packed));
+
+esp_err_t mesh_app_init(provisioning_complete_f on_provisioning_complete, 
                         attention_changed_f on_attention_changed);
 
-void ble_mesh_publish_sensors_data();
+void mesh_app_publish_sensors_data();
 
-void ble_mesh_update_temperature(float new_value);
+void mesh_app_update_temperature(float new_value);
 
-void ble_mesh_update_humidity(float new_value);
+void mesh_app_update_humidity(float new_value);
 
-void ble_mesh_update_luminocity(float new_value);
+void mesh_app_update_luminocity(float new_value);

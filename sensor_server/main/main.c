@@ -13,7 +13,7 @@
 
 #include "esp_log.h"
 #include "nvs_flash.h"
-#include "ble_mesh.h"
+#include "mesh_app.h"
 
 #include "ux.h"
 #include "sensors.h"
@@ -22,7 +22,6 @@
 #define TAG "MAIN"
 
 SemaphoreHandle_t print_mux = NULL;
-
 
 /* I2C refresh interval */
 #define DELAY_TIME_BETWEEN_ITEMS_MS 5000
@@ -38,7 +37,7 @@ static void i2c_test_bh1750(void *arg)
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
         } else if (ret == ESP_OK) {
-            ble_mesh_update_luminocity(luminocityF);
+            mesh_app_update_luminocity(luminocityF);
             ESP_LOGI(TAG, "LIGHT: %.02f [Lux]\n", luminocityF);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
@@ -60,8 +59,8 @@ static void i2c_test_sht30(void *arg)
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
         } else if (ret == ESP_OK) {
-            ble_mesh_update_temperature(tempCF);
-            ble_mesh_update_humidity(humidityF);
+            mesh_app_update_temperature(tempCF);
+            mesh_app_update_humidity(humidityF);
             ESP_LOGI(TAG, "SHT30 temp=%.2fC, hum=%.2f%%", tempCF, humidityF);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
@@ -85,7 +84,7 @@ void press_callback(int how_long_ns) {
         ESP_LOGI(TAG, "Resetting mesh initiative started");
         ux_signal_reset_initiative_started();
 
-        ble_mesh_publish_sensors_data();
+        mesh_app_publish_sensors_data();
     } else {
         ESP_LOGI(TAG, "Resetting mesh initiative given up");
         ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
@@ -132,7 +131,7 @@ void app_main(void)
     }
 
     /* Initialize the Bluetooth Mesh Subsystem */
-    err = ble_mesh_init(provisioning_complete, attention);
+    err = mesh_app_init(provisioning_complete, attention);
     if (err) {
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
