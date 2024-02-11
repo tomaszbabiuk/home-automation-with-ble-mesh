@@ -20,6 +20,7 @@
 #include "esp_ble_mesh_config_model_api.h"
 #include "esp_ble_mesh_generic_model_api.h"
 #include "esp_ble_mesh_sensor_model_api.h"
+#include "esp_ble_mesh_time_scene_model_api.h"
 
 #include "board.h"
 #include "ble_mesh_example_init.h"
@@ -44,10 +45,11 @@ static struct example_info_store {
 };
 
 static nvs_handle_t NVS_HANDLE;
-static const char * NVS_KEY = "onoff_client";
+static const char * NVS_KEY = "milti_client";
 
 static esp_ble_mesh_client_t onoff_client;
 static esp_ble_mesh_client_t sensor_client;
+static esp_ble_mesh_client_t time_client;
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
@@ -74,6 +76,7 @@ static esp_ble_mesh_model_t root_models[] = {
     ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
     ESP_BLE_MESH_MODEL_GEN_ONOFF_CLI(&onoff_cli_pub, &onoff_client),
     ESP_BLE_MESH_MODEL_SENSOR_CLI(NULL, &sensor_client),
+    ESP_BLE_MESH_MODEL_TIME_CLI(NULL, &time_client)
 };
 
 static esp_ble_mesh_elem_t elements[] = {
@@ -298,6 +301,13 @@ static void example_ble_mesh_sensor_client_cb(esp_ble_mesh_sensor_client_cb_even
     }
 }
 
+static void example_ble_time_scene_client_cb(esp_ble_mesh_time_scene_client_cb_event_t event,
+                                             esp_ble_mesh_time_scene_client_cb_param_t *param)
+{
+    ESP_LOGI(TAG, "Time client, event %u, addr 0x%04x", event, param->params->ctx.addr);
+}
+
+
 static esp_err_t ble_mesh_init(void)
 {
     esp_err_t err = ESP_OK;
@@ -306,6 +316,7 @@ static esp_err_t ble_mesh_init(void)
     esp_ble_mesh_register_generic_client_callback(example_ble_mesh_generic_client_cb);
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
     esp_ble_mesh_register_sensor_client_callback(example_ble_mesh_sensor_client_cb);
+    esp_ble_mesh_register_time_scene_client_callback(example_ble_time_scene_client_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);
     if (err != ESP_OK) {

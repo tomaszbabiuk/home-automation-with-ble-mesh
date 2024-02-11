@@ -7,6 +7,9 @@
   "idf.portWin": "COM7",
   "idf.flashType": "UART",
   "files.associations": {
-    "ble_mesh_example_init.h": "c"
-  }
+    "ble_mesh_example_init.h": "c",
+    "esp_ble_mesh_defs.h": "c",
+    "esp_ble_mesh_time_scene_model_api.h": "c"
+  },
+  "idf.port": "/dev/cu.usbserial-210"
 }
