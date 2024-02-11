@@ -67,11 +67,33 @@ static esp_ble_mesh_time_srv_t time_server = {
     .state = &time_state
 };
 
+NET_BUF_SIMPLE_DEFINE_STATIC(prop_wifi_ssid, 20);
+
+static esp_ble_mesh_generic_property_t props[1] = {
+    [0] = {
+        .id = 0x01,
+        .admin_access = ESP_BLE_MESH_GEN_ADMIN_NOT_USER_PROP,
+        .manu_access = ESP_BLE_MESH_GEN_MANU_NOT_USER_PROP,
+        .user_access = ESP_BLE_MESH_GEN_USER_ACCESS_READ_WRITE,
+        .val = &prop_wifi_ssid
+    }
+};
+
+
+static esp_ble_mesh_gen_user_prop_srv_t prop_server = {
+    .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
+    .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
+    .property_count = 1,
+    .properties = props
+}
+
 ESP_BLE_MESH_MODEL_PUB_DEFINE(time_server_pub, 2 + 16, ROLE_NODE);
+ESP_BLE_MESH_MODEL_PUB_DEFINE(prop_server_pub, 2 + 100, ROLE_NODE);
 static esp_ble_mesh_model_t root_models[] = {
     ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
     ESP_BLE_MESH_MODEL_TIME_SRV(&time_server_pub, &time_server),
-    ESP_BLE_MESH_MODEL_TIME_SETUP_SRV(&time_setup_server)
+    ESP_BLE_MESH_MODEL_TIME_SETUP_SRV(&time_setup_server),
+    ESP_BLE_MESH_MODEL_GEN_USER_PROP_SRV(&prop_server_pub, &prop_server)
 };
 
 static esp_ble_mesh_elem_t elements[] = {
@@ -185,7 +207,6 @@ static esp_err_t ble_mesh_init(void)
     esp_ble_mesh_register_prov_callback(example_ble_mesh_provisioning_cb);
     esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
     esp_ble_mesh_register_time_scene_server_callback(example_ble_mesh_time_server_cb);
-    esp_ble_mesh_register_
 
     err = esp_ble_mesh_init(&provision, &composition);
     if (err != ESP_OK) {
