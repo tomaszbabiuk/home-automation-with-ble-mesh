@@ -5,6 +5,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include "ble_mesh_example_init.h"
+#include "esp_ble_mesh_generic_model_api.h"
 
 #define TAG "BLE"
 
@@ -39,8 +40,29 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
 
+NET_BUF_SIMPLE_DEFINE_STATIC(prop_wifi_ssid, 20);
+
+static esp_ble_mesh_generic_property_t props[1] = {
+    [0] = {
+        .id = 0x01,
+        .admin_access = ESP_BLE_MESH_GEN_ADMIN_NOT_USER_PROP,
+        .manu_access = ESP_BLE_MESH_GEN_MANU_NOT_USER_PROP,
+        .user_access = ESP_BLE_MESH_GEN_USER_ACCESS_READ_WRITE,
+        .val = &prop_wifi_ssid
+    }
+};
+
+ESP_BLE_MESH_MODEL_PUB_DEFINE(prop_server_pub, 2 + 11, ROLE_NODE);
+static esp_ble_mesh_gen_user_prop_srv_t prop_server = {
+    .rsp_ctrl.get_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
+    .rsp_ctrl.set_auto_rsp = ESP_BLE_MESH_SERVER_AUTO_RSP,
+    .property_count = 1,
+    .properties = props
+};
+
+
 uint8_t test_ids[1] = {0x00};
-ESP_BLE_MESH_MODEL_PUB_DEFINE(health_pub, 2 + 11, ROLE_NODE);
+ESP_BLE_MESH_MODEL_PUB_DEFINE(health_server_pub, 2 + 11, ROLE_NODE);
 static esp_ble_mesh_health_srv_t health_server = {
     .health_test.id_count = 1,
     .health_test.test_ids = test_ids,
@@ -101,9 +123,10 @@ static esp_ble_mesh_sensor_setup_srv_t sensor_setup_server = {
 
 static esp_ble_mesh_model_t root_models[] = {
     ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
-    ESP_BLE_MESH_MODEL_HEALTH_SRV(&health_server, &health_pub),
+    ESP_BLE_MESH_MODEL_HEALTH_SRV(&health_server, &health_server_pub),
     ESP_BLE_MESH_MODEL_SENSOR_SRV(&sensor_pub, &sensor_server),
     ESP_BLE_MESH_MODEL_SENSOR_SETUP_SRV(&sensor_setup_pub, &sensor_setup_server),
+    ESP_BLE_MESH_MODEL_GEN_USER_PROP_SRV(&prop_server_pub, &prop_server)
 };
 
 static esp_ble_mesh_elem_t elements[] = {
@@ -566,6 +589,11 @@ static void mesh_app_sensor_server_cb(esp_ble_mesh_sensor_server_cb_event_t even
     }
 }
 
+static void mesh_all_generic_properties_cb(esp_ble_mesh_generic_server_cb_event_t event,
+                                           esp_ble_mesh_generic_server_cb_param_t *param) {
+    ESP_LOGI(TAG, "GENERIC sensor callback");
+}
+
 void mesh_app_publish_sensors_data() {
     uint8_t *status = NULL;
     uint16_t buf_size = mesh_app_calculate_sensor_report_buffer_size();
@@ -600,6 +628,7 @@ esp_err_t mesh_app_init(provisioning_complete_f on_provisioning_complete,
     esp_ble_mesh_register_config_server_callback(mesh_app_config_server_cb);
     esp_ble_mesh_register_sensor_server_callback(mesh_app_sensor_server_cb);
     esp_ble_mesh_register_health_server_callback(mesh_app_health_server_cb);
+    esp_ble_mesh_register_generic_server_callback(mesh_all_generic_properties_cb);
 
     err = esp_ble_mesh_init(&provision, &composition);
     if (err != ESP_OK) {

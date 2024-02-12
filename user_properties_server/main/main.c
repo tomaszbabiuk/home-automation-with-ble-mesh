@@ -16,61 +16,9 @@
 #include "mesh_app.h"
 
 #include "ux.h"
-#include "sensors.h"
 #include "ble_mesh_example_init.h"
 
 #define TAG "MAIN"
-
-SemaphoreHandle_t print_mux = NULL;
-
-/* I2C refresh interval */
-#define DELAY_TIME_BETWEEN_ITEMS_MS 5000
-
-
-static void i2c_test_bh1750(void *arg)
-{
-    int ret;
-    float luminocityF;
-    while (1) {
-        ret = i2c_master_sensor_bh1750(&luminocityF);
-        xSemaphoreTake(print_mux, portMAX_DELAY);
-        if (ret == ESP_ERR_TIMEOUT) {
-            ESP_LOGE(TAG, "I2C Timeout");
-        } else if (ret == ESP_OK) {
-            mesh_app_update_luminocity(luminocityF);
-            ESP_LOGI(TAG, "LIGHT: %.02f [Lux]\n", luminocityF);
-        } else {
-            ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
-        }
-        xSemaphoreGive(print_mux);
-        vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_PERIOD_MS);
-    }
-    vSemaphoreDelete(print_mux);
-    vTaskDelete(NULL);
-}
-
-static void i2c_test_sht30(void *arg)
-{
-    int ret;
-    while (1) {
-        float tempCF, humidityF;
-        ret = i2c_master_sensor_sht30(&tempCF, &humidityF);
-        xSemaphoreTake(print_mux, portMAX_DELAY);
-        if (ret == ESP_ERR_TIMEOUT) {
-            ESP_LOGE(TAG, "I2C Timeout");
-        } else if (ret == ESP_OK) {
-            mesh_app_update_temperature(tempCF);
-            mesh_app_update_humidity(humidityF);
-            ESP_LOGI(TAG, "SHT30 temp=%.2fC, hum=%.2f%%", tempCF, humidityF);
-        } else {
-            ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
-        }
-        xSemaphoreGive(print_mux);
-        vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_PERIOD_MS);
-    }
-    vSemaphoreDelete(print_mux);
-    vTaskDelete(NULL);
-}
 
 void press_callback(int how_long_ns) {
     int how_long_s = how_long_ns / 1000000;
@@ -105,12 +53,6 @@ void attention(bool on) {
 
 void app_main(void)
 {
-    print_mux = xSemaphoreCreateMutex();
-    ESP_ERROR_CHECK(i2c_master_init());
-    xTaskCreate(i2c_test_bh1750, "i2c_bh1750", 1024 * 2, (void *)0, 10, NULL);
-    xTaskCreate(i2c_test_sht30, "i2c_sht30", 1024 * 2, (void *)1, 10, NULL);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-
     esp_err_t err;
 
     ESP_LOGI(TAG, "Initializing mesh ...");
@@ -136,7 +78,12 @@ void app_main(void)
         ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
     }
 
-    bt_mesh_set_device_name("SENSOR-SERVER");
+    bt_mesh_set_device_name("PROP-SERVER");
 
     ux_signal_provisioning_state(esp_ble_mesh_node_is_provisioned());
+
+    while (1) {
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        ESP_LOGI(TAG, ".");
+    }
 }
