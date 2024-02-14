@@ -62,3 +62,4 @@ time_server/build
 onoff_server/build
 onoff_client/build
 user_properties_server/build
+scene_server/build
