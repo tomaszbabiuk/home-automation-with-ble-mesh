@@ -211,22 +211,22 @@ static void example_ble_mesh_scene_server_cb(esp_ble_mesh_time_scene_server_cb_e
             {
                 case ESP_BLE_MESH_MODEL_OP_SCENE_RECALL:
                 case ESP_BLE_MESH_MODEL_OP_SCENE_RECALL_UNACK:{
-                    //ESP_LOGI(TAG, "Scene time recall 0x%04x", param->value.state_change.scene_recall.scene_number);
+                    ESP_LOGI(TAG, "Scene recall 0x%04x", param->value.state_change.scene_recall.scene_number);
                     break;
                 }
                 case ESP_BLE_MESH_MODEL_OP_SCENE_STORE:
                 case ESP_BLE_MESH_MODEL_OP_SCENE_STORE_UNACK: {
-                    //ESP_LOGI(TAG, "Scene time store 0x%04x", param->value.state_change.scene_store.scene_number);
+                    ESP_LOGI(TAG, "Scene store 0x%04x", param->value.state_change.scene_store.scene_number);
                     break;
                 }
                 case ESP_BLE_MESH_MODEL_OP_SCENE_DELETE:
                 case ESP_BLE_MESH_MODEL_OP_SCENE_DELETE_UNACK:
-                    //ESP_LOGI(TAG, "Scene time delete 0x%04x", param->value.state_change.scene_delete.scene_number);
+                    ESP_LOGI(TAG, "Scene delete 0x%04x", param->value.state_change.scene_delete.scene_number);
                     break;
                 case ESP_BLE_MESH_MODEL_OP_SCENE_REGISTER_GET:
                 case ESP_BLE_MESH_MODEL_OP_SCENE_STATUS:
                 case ESP_BLE_MESH_MODEL_OP_SCENE_REGISTER_STATUS:
-                    //ESP_LOGI(TAG, "Scene time all 0x%04x", param->ctx.recv_op);
+                    ESP_LOGI(TAG, "Not supported");
                     break;
 
                 default:
