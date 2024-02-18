@@ -15,5 +15,5 @@
     "ble_mesh_example_init.h": "c",
     "board.h": "c"
   },
-  "idf.port": "/dev/cu.usbmodem2101"
+  "idf.port": "/dev/cu.usbmodem101"
 }
