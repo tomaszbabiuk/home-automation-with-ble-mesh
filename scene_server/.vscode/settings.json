@@ -13,5 +13,5 @@
     "esp_ble_mesh_time_scene_model_api.h": "c",
     "time_scene_server.h": "c"
   },
-  "idf.port": "/dev/cu.usbmodem2101"
+  "idf.port": "/dev/cu.usbserial-210"
 }
