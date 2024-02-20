@@ -51,13 +51,16 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+generic_gpio/build
+heating_manifold/build
+hello_ld2410/build
+r8_server/build
+recuperator/build
+sensor_client/build
+sensor_server/build
+time_server/build
 onoff_server/build
 onoff_client/build
-r8_server/build
-sensor_server/build
-sensor_client/build
-heating_manifold/build
-recuperator/build
-generic_gpio/build
-hormone_client/build
-hello_ld2410/build
+user_properties_server/build
+scene_server/build
+scene_client/build

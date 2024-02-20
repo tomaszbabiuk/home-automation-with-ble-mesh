@@ -1,0 +1,19 @@
+{
+  "C_Cpp.intelliSenseEngine": "default",
+  "idf.adapterTargetName": "esp32c3",
+  "idf.openOcdConfigs": [
+    "board/esp32c3-bridge.cfg"
+  ],
+  "idf.portWin": "COM3",
+  "idf.flashType": "UART",
+  "files.associations": {
+    "esp_ble_mesh_time_scene_model_api.h": "c",
+    "esp_ble_mesh_sensor_model_api.h": "c",
+    "rgb_led.h": "c",
+    "esp_log.h": "c",
+    "ble_mesh.h": "c",
+    "ble_mesh_example_init.h": "c",
+    "board.h": "c"
+  },
+  "idf.port": "/dev/cu.usbserial-210"
+}
