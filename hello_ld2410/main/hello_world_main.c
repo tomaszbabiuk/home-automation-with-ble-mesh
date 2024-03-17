@@ -165,14 +165,13 @@ void radar_app_loop(void *params)
    {
       ESP_LOGW("RADAR", "FW Read Failed\n");
    }
-   while (ld2410_radar_bluetooth_off() != ld2410_radar_ack_results_success)
+
+   while (ld2410_radar_start_engineering_mode() != ld2410_radar_ack_results_success)
    {
-      ESP_LOGW("RADAR", "Bluetooth off failed\n");
+      ESP_LOGW("RADAR", "Starting engineering mode failed\n");
    }
-   ESP_LOGW("RADAR", "Bluetooth off success\n");
-   // while (ld2410_radar_start_engineering_mode() == ld2410_radar_ack_results_fail)
-   // {
-   // }
+   ESP_LOGW("RADAR", "Starting engineering mode success\n");
+
    for (;;)
    {
       if (ld2410_radar_read_data_frame(&report) != ld2410_radar_ack_results_success)
@@ -182,24 +181,36 @@ void radar_app_loop(void *params)
 
       if (report.measurement_value.basic_values.data_type == 0x02)
       {
-         ESP_LOGW("RADAR", "Basic State: %d,", report.measurement_value.basic_values.state);
-         ESP_LOGW("RADAR", " Moving energy: %d,", report.measurement_value.basic_values.moving_energy);
-         ESP_LOGW("RADAR", " Moving distance: %d,", report.measurement_value.basic_values.moving_distance);
-         ESP_LOGW("RADAR", " Stationary energy: %d,", report.measurement_value.basic_values.stationary_energy);
-         ESP_LOGW("RADAR", " Stationary distance: %d,", report.measurement_value.basic_values.stationary_distance);
-         ESP_LOGW("RADAR", " Detection distance: %d\n", report.measurement_value.basic_values.detection_distance);
+         ESP_LOGW("RADAR", "Energy [mov/sta] =  %d/%d, Distance [mov/sta/det] = %d/%d/%d",
+            report.measurement_value.basic_values.moving_energy, 
+            report.measurement_value.basic_values.stationary_energy,
+            report.measurement_value.basic_values.moving_distance, 
+            report.measurement_value.basic_values.stationary_distance, 
+            report.measurement_value.basic_values.detection_distance);
       }
       else if (report.measurement_value.engineering_values.data_type == 0x01)
       {
-         ESP_LOGW("RADAR", "Engineering State: %d,", report.measurement_value.engineering_values.state);
-         ESP_LOGW("RADAR", " Moving energy: %d,", report.measurement_value.engineering_values.moving_energy);
-         ESP_LOGW("RADAR", " Moving distance: %d,", report.measurement_value.engineering_values.moving_distance);
-         ESP_LOGW("RADAR", " Stationary energy: %d,", report.measurement_value.engineering_values.stationary_energy);
-         ESP_LOGW("RADAR", " Stationary distance: %d,", report.measurement_value.engineering_values.stationary_distance);
-         ESP_LOGW("RADAR", " Detection distance: %d", report.measurement_value.engineering_values.detection_distance);
-         ESP_LOGW("RADAR", " Photo Sensor: %d\n", report.measurement_value.engineering_values.photo_sensor);
+         ESP_LOGW("RADAR", "Static gates: %d.%d.%d.%d.%d.%d.%d.%d.%d", 
+            report.measurement_value.engineering_values.static_gates_energy.static_gate_0_energy,
+            report.measurement_value.engineering_values.static_gates_energy.static_gate_1_energy,
+            report.measurement_value.engineering_values.static_gates_energy.static_gate_2_energy,
+            report.measurement_value.engineering_values.static_gates_energy.static_gate_3_energy,
+            report.measurement_value.engineering_values.static_gates_energy.static_gate_4_energy,
+            report.measurement_value.engineering_values.static_gates_energy.static_gate_5_energy,
+            report.measurement_value.engineering_values.static_gates_energy.static_gate_6_energy,
+            report.measurement_value.engineering_values.static_gates_energy.static_gate_7_energy,
+            report.measurement_value.engineering_values.static_gates_energy.static_gate_8_energy
+         );
+
+         // ESP_LOGW("RADAR", "Engineering State: %d,", report.measurement_value.engineering_values.state);
+         // ESP_LOGW("RADAR", " Moving energy: %d,", report.measurement_value.engineering_values.moving_energy);
+         // ESP_LOGW("RADAR", " Moving distance: %d,", report.measurement_value.engineering_values.moving_distance);
+         // ESP_LOGW("RADAR", " Stationary energy: %d,", report.measurement_value.engineering_values.stationary_energy);
+         // ESP_LOGW("RADAR", " Stationary distance: %d,", report.measurement_value.engineering_values.stationary_distance);
+         // ESP_LOGW("RADAR", " Detection distance: %d", report.measurement_value.engineering_values.detection_distance);
+         // ESP_LOGW("RADAR", " Photo Sensor: %d\n", report.measurement_value.engineering_values.photo_sensor);
       }
-      vTaskDelay(pdMS_TO_TICKS(100));
+      vTaskDelay(pdMS_TO_TICKS(10));
    }
 }
 void app_main(void)
@@ -213,8 +224,6 @@ void app_main(void)
        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
        .source_clk = UART_SCLK_APB,
    };
-
-   printf("UART: %d\n", CONFIG_RADAR_UART_NUM);
 
    uart_driver_install(CONFIG_RADAR_UART_NUM, RADAR_BUFFER_SIZE * 2, 0, 0, NULL, 0);
    uart_param_config(CONFIG_RADAR_UART_NUM, &uart_config);
