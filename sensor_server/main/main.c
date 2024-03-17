@@ -106,10 +106,15 @@ void attention(bool on) {
 void app_main(void)
 {
     print_mux = xSemaphoreCreateMutex();
-    ESP_ERROR_CHECK(i2c_master_init());
+    ESP_ERROR_CHECK(i2c_sensors_init());
     xTaskCreate(i2c_test_bh1750, "i2c_bh1750", 1024 * 2, (void *)0, 10, NULL);
     xTaskCreate(i2c_test_sht30, "i2c_sht30", 1024 * 2, (void *)1, 10, NULL);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+
+    uint32_t tvoc;
+    uint32_t eco2;
+    i2c_master_sensor_sgp30(&tvoc, &eco2);
 
     esp_err_t err;
 
