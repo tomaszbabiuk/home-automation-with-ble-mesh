@@ -17,6 +17,8 @@
 #define ACK_VAL 0x0                             /*!< I2C ack value */
 #define NACK_VAL 0x1                            /*!< I2C nack value */
 
+static sgp30_dev_t main_sgp30_sensor;
+
 esp_err_t i2c_master_sensor_bh1750(float *luminocity)
 {
     uint8_t command[] = { BH1750_CMD_START };
@@ -137,48 +139,30 @@ int8_t main_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *in
 }
 
 static esp_err_t sensors_sgp30_init() {
-    sgp30_dev_t main_sgp30_sensor;
-
     sgp30_init(&main_sgp30_sensor, (sgp30_read_fptr_t)main_i2c_read, (sgp30_write_fptr_t)main_i2c_write);
 
     // SGP30 needs to be read every 1s and sends TVOC = 400 14 times when initializing
-    for (int i = 0; i < 14; i++) {
+    for (int i = 0; i < 15; i++) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         sgp30_IAQ_measure(&main_sgp30_sensor);
         ESP_LOGI(TAG, "SGP30 Calibrating... TVOC: %d,  eCO2: %d",  main_sgp30_sensor.TVOC, main_sgp30_sensor.eCO2);
     }
+
+    uint16_t eco2_baseline, tvoc_baseline;
+    sgp30_get_IAQ_baseline(&main_sgp30_sensor, &eco2_baseline, &tvoc_baseline);
+    ESP_LOGI(TAG, "SGP30 BASELINES - TVOC: %d,  eCO2: %d",  tvoc_baseline, eco2_baseline);
 
     return 0;
 }
 
 esp_err_t i2c_master_sensor_sgp30(uint16_t *tvoc, uint16_t *eco2) {
 	//https://github.com/co-env/esp32_SGP30
-    sgp30_dev_t main_sgp30_sensor;
+    sgp30_IAQ_measure(&main_sgp30_sensor);
 
-    sgp30_init(&main_sgp30_sensor, (sgp30_read_fptr_t)main_i2c_read, (sgp30_write_fptr_t)main_i2c_write);
+    *tvoc = main_sgp30_sensor.TVOC;
+    *eco2 = main_sgp30_sensor.eCO2;
 
-    // SGP30 needs to be read every 1s and sends TVOC = 400 14 times when initializing
-    for (int i = 0; i < 14; i++) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        sgp30_IAQ_measure(&main_sgp30_sensor);
-        ESP_LOGI(TAG, "SGP30 Calibrating... TVOC: %d,  eCO2: %d",  main_sgp30_sensor.TVOC, main_sgp30_sensor.eCO2);
-    }
-
-    // Read initial baselines 
-    uint16_t eco2_baseline, tvoc_baseline;
-    sgp30_get_IAQ_baseline(&main_sgp30_sensor, &eco2_baseline, &tvoc_baseline);
-    ESP_LOGI(TAG, "BASELINES - TVOC: %d,  eCO2: %d",  tvoc_baseline, eco2_baseline);
-
-
-    ESP_LOGI(TAG, "SGP30 main task is running...");
-    while(1) {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        sgp30_IAQ_measure(&main_sgp30_sensor);
-
-        ESP_LOGI(TAG, "TVOC: %d,  eCO2: %d",  main_sgp30_sensor.TVOC, main_sgp30_sensor.eCO2);
-    }
-	
-	return 0;
+    return 0;
 }
 
 esp_err_t i2c_sensors_init(void)
