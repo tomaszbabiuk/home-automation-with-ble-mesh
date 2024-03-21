@@ -19,7 +19,7 @@
 
 static sgp30_dev_t main_sgp30_sensor;
 
-esp_err_t i2c_master_sensor_bh1750(float *luminocity)
+esp_err_t i2c_sensors_read_bh1750(float *luminocity)
 {
     uint8_t command[] = { BH1750_CMD_START };
     uint8_t data[2];
@@ -30,7 +30,7 @@ esp_err_t i2c_master_sensor_bh1750(float *luminocity)
     return ret;
 }
 
-uint8_t calculate_crc8(uint8_t *data, int len)
+static uint8_t calculate_crc8(uint8_t *data, int len)
 {
 	const uint8_t	POLYNOMIAL = 0x31;
 	uint8_t			crc = 0xFF;
@@ -45,7 +45,7 @@ uint8_t calculate_crc8(uint8_t *data, int len)
 	return crc;
 }
 
-esp_err_t i2c_master_sensor_sht30(float *tempC, float *humidity)
+esp_err_t i2c_sensors_read_sht30(float *tempC, float *humidity)
 {
     uint16_t val;
     uint8_t command[] = SHT30_CMD_MEASURE_HIGH_REPETABILITY;
@@ -155,7 +155,7 @@ static esp_err_t sensors_sgp30_init() {
     return 0;
 }
 
-esp_err_t i2c_master_sensor_sgp30(uint16_t *tvoc, uint16_t *eco2) {
+esp_err_t i2c_sensors_read_sgp30(uint16_t *tvoc, uint16_t *eco2) {
 	//https://github.com/co-env/esp32_SGP30
     sgp30_IAQ_measure(&main_sgp30_sensor);
 

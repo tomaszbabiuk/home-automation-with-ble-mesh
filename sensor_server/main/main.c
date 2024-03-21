@@ -26,13 +26,16 @@ SemaphoreHandle_t print_mux = NULL;
 /* I2C refresh interval */
 #define DELAY_TIME_BETWEEN_ITEMS_MS 5000
 
-
-static void i2c_proc_bh1750(void *arg)
+static void i2c_process(void *arg)
 {
+    ESP_LOGE(TAG, "I2C process");
+
     int ret;
-    float luminocityF;
+    float tempCF, humidityF, luminocityF;
+    uint16_t tvoc, eco2;
+    
     while (1) {
-        ret = i2c_master_sensor_bh1750(&luminocityF);
+        ret = i2c_sensors_read_bh1750(&luminocityF);
         xSemaphoreTake(print_mux, portMAX_DELAY);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
@@ -42,19 +45,8 @@ static void i2c_proc_bh1750(void *arg)
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
-        xSemaphoreGive(print_mux);
-        vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_PERIOD_MS);
-    }
-    vSemaphoreDelete(print_mux);
-    vTaskDelete(NULL);
-}
 
-static void i2c_proc_sht30(void *arg) {
-    int ret;
-    float tempCF, humidityF;
-    while (1) {
-        ret = i2c_master_sensor_sht30(&tempCF, &humidityF);
-        xSemaphoreTake(print_mux, portMAX_DELAY);
+        ret = i2c_sensors_read_sht30(&tempCF, &humidityF);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
         } else if (ret == ESP_OK) {
@@ -64,29 +56,18 @@ static void i2c_proc_sht30(void *arg) {
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
-        xSemaphoreGive(print_mux);
-        vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_PERIOD_MS);
-    }
-    vSemaphoreDelete(print_mux);
-    vTaskDelete(NULL);
-}
 
-static void i2c_proc_sgp30(void *arg) {
-    int ret;
-    uint16_t tvoc;
-    uint16_t eco2;
-    while (1) {
-        ret = i2c_master_sensor_sgp30(&tvoc, &eco2);
-        xSemaphoreTake(print_mux, portMAX_DELAY);
+        ret = i2c_sensors_read_sgp30(&tvoc, &eco2);
         if (ret == ESP_ERR_TIMEOUT) {
             ESP_LOGE(TAG, "I2C Timeout");
         } else if (ret == ESP_OK) {
-            //mesh_app_update_temperature(tempCF);
-            //mesh_app_update_humidity(humidityF);
-            ESP_LOGI(TAG, "TVOC: %d,  eCO2: %d",  tvoc, eco2);
+            mesh_app_update_tvoc(tvoc);
+            mesh_app_update_eco2(eco2);
+            ESP_LOGI(TAG, "SGP30 tvoc=%d, eCO2=%d",  tvoc, eco2);
         } else {
             ESP_LOGW(TAG, "%s: No ack, sensor not connected...skip...", esp_err_to_name(ret));
         }
+
         xSemaphoreGive(print_mux);
         vTaskDelay(DELAY_TIME_BETWEEN_ITEMS_MS / portTICK_PERIOD_MS);
     }
@@ -129,10 +110,8 @@ void app_main(void)
 {
     print_mux = xSemaphoreCreateMutex();
     ESP_ERROR_CHECK(i2c_sensors_init());
-    xTaskCreate(i2c_proc_bh1750, "i2c_bh1750", 1024 * 2, (void *)0, 10, NULL);
-    xTaskCreate(i2c_proc_sht30, "i2c_sht30", 1024 * 2, (void *)0, 10, NULL);
-    xTaskCreate(i2c_proc_sgp30, "i2c_sgp30", 1024 * 2, (void *)0, 10, NULL);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    xTaskCreate(i2c_process, "i2c_process", 1024 * 5, (void *)0, 10, NULL);
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
 
     esp_err_t err;
 

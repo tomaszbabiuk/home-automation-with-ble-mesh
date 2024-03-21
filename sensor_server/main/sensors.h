@@ -19,8 +19,8 @@
 #define I2C_MASTER_RX_BUF_DISABLE 0   
 
 esp_err_t i2c_sensors_init(void);
-esp_err_t i2c_master_sensor_sht30(float *tempC, float *humidity);
-esp_err_t i2c_master_sensor_bh1750(float *luminocity);
-esp_err_t i2c_master_sensor_sgp30(uint16_t *tvoc, uint16_t *eco2);
+esp_err_t i2c_sensors_read_sht30(float *tempC, float *humidity);
+esp_err_t i2c_sensors_read_bh1750(float *luminocity);
+esp_err_t i2c_sensors_read_sgp30(uint16_t *tvoc, uint16_t *eco2);
 
 #endif
