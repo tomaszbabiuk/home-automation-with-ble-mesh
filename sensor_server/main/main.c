@@ -18,6 +18,7 @@
 #include "ux.h"
 #include "sensors.h"
 #include "ble_mesh_example_init.h"
+#include "board.h"
 
 #define TAG "MAIN"
 
@@ -108,6 +109,8 @@ void attention(bool on) {
 
 void app_main(void)
 {
+    ux_init(press_callback);
+
     print_mux = xSemaphoreCreateMutex();
     ESP_ERROR_CHECK(i2c_sensors_init());
     xTaskCreate(i2c_process, "i2c_process", 1024 * 5, (void *)0, 10, NULL);
@@ -123,8 +126,6 @@ void app_main(void)
         err = nvs_flash_init();
     }
     ESP_ERROR_CHECK(err);
-
-    ux_init(press_callback);
 
     err = bluetooth_init();
     if (err) {
