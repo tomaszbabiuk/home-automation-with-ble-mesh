@@ -11,14 +11,18 @@
 attention_changed_f attention_changed_callback = NULL;
 provisioning_complete_f provisioning_complete_callback = NULL;
 
-// https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/libraries/bluetooth_services/mesh/sensor_types.html#bt-mesh-sensor-types-readme
-static uint32_t luminocityToReport = 0;
+//https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/libraries/bluetooth_services/mesh/sensor_types.htmlstatic uint32_t luminocityToReport = 0;
+static uint16_t luminocityToReport = 0;
 static uint16_t humidityToReport = 0;
 static uint8_t temperatureToReport = 0;
+static uint16_t tvocToReport = 0;
+static uint16_t eco2ToReport = 0;
 
 NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_lum, 4);
 NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_hum, 2);
 NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_temp, 1);
+NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_tvoc, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(sensor_data_eco2, 2);
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_ENABLED,
@@ -46,7 +50,7 @@ static esp_ble_mesh_health_srv_t health_server = {
     .health_test.test_ids = test_ids,
 };
 
-static esp_ble_mesh_sensor_state_t sensor_states[3] = {
+static esp_ble_mesh_sensor_state_t sensor_states[5] = {
     [0] = {
         .sensor_property_id = BT_MESH_PROP_ID_PRESENT_AMB_LIGHT_LEVEL,
         .descriptor.positive_tolerance = SENSOR_POSITIVE_TOLERANCE,
@@ -79,6 +83,28 @@ static esp_ble_mesh_sensor_state_t sensor_states[3] = {
         .sensor_data.format = ESP_BLE_MESH_SENSOR_DATA_FORMAT_A,
         .sensor_data.length = 0, /* 0 represents the length is 1 */
         .sensor_data.raw_value = &sensor_data_temp,
+    },
+    [3] = {
+        .sensor_property_id = BT_MESH_PROP_ID_PRESENT_AMB_VOC_CONCENTRATION,
+        .descriptor.positive_tolerance = SENSOR_POSITIVE_TOLERANCE,
+        .descriptor.negative_tolerance = SENSOR_NEGATIVE_TOLERANCE,
+        .descriptor.sampling_function = SENSOR_SAMPLE_FUNCTION,
+        .descriptor.measure_period = SENSOR_MEASURE_PERIOD,
+        .descriptor.update_interval = SENSOR_UPDATE_INTERVAL,
+        .sensor_data.format = ESP_BLE_MESH_SENSOR_DATA_FORMAT_A,
+        .sensor_data.length = 1, /* 1 represents the length is 2 */
+        .sensor_data.raw_value = &sensor_data_tvoc,
+    },
+    [4] = {
+        .sensor_property_id = BT_MESH_PROP_ID_PRESENT_AMB_CO2_CONCENTRATION,
+        .descriptor.positive_tolerance = SENSOR_POSITIVE_TOLERANCE,
+        .descriptor.negative_tolerance = SENSOR_NEGATIVE_TOLERANCE,
+        .descriptor.sampling_function = SENSOR_SAMPLE_FUNCTION,
+        .descriptor.measure_period = SENSOR_MEASURE_PERIOD,
+        .descriptor.update_interval = SENSOR_UPDATE_INTERVAL,
+        .sensor_data.format = ESP_BLE_MESH_SENSOR_DATA_FORMAT_A,
+        .sensor_data.length = 1, /* 1 represents the length is 2 */
+        .sensor_data.raw_value = &sensor_data_eco2,
     }
 };
 
@@ -121,9 +147,11 @@ static void mesh_app_prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flag
     ESP_LOGI(TAG, "net_idx 0x%03x, addr 0x%04x", net_idx, addr);
     ESP_LOGI(TAG, "flags 0x%02x, iv_index 0x%08" PRIx32, flags, iv_index);
     
-    net_buf_simple_add_le32(&sensor_data_lum, luminocityToReport);
-    net_buf_simple_add_le16(&sensor_data_hum, humidityToReport);
-    net_buf_simple_add_u8(&sensor_data_temp, temperatureToReport);
+    net_buf_simple_add_le32(&sensor_data_lum, 0);
+    net_buf_simple_add_le16(&sensor_data_hum, 0);
+    net_buf_simple_add_u8(&sensor_data_temp, 0);
+    net_buf_simple_add_le16(&sensor_data_tvoc, 0);
+    net_buf_simple_add_le16(&sensor_data_eco2, 400);
 
     provisioning_complete_callback();
 }
@@ -631,4 +659,14 @@ void mesh_app_update_humidity(float new_value) {
 void mesh_app_update_luminocity(float new_value) {
     uint32_t* luminocity = (uint32_t*)sensor_data_lum.data;
     *luminocity = new_value * 100;
+}
+
+void mesh_app_update_tvoc(uint16_t new_value) {
+    uint16_t* tvoc = (uint16_t*)sensor_data_tvoc.data;
+    *tvoc = new_value;
+}
+
+void mesh_app_update_eco2(uint16_t new_value) {
+    uint16_t* eco2 = (uint16_t*)sensor_data_eco2.data;
+    *eco2 = new_value;
 }

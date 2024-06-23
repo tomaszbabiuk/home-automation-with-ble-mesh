@@ -390,10 +390,11 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
-# Example Configuration
+# Ble-mesh sensor configuration
 #
-CONFIG_BLE_MESH_ESP32C3_DEV=y
-# end of Example Configuration
+# CONFIG_BLE_MESH_WEMOC_C3_MINI is not set
+CONFIG_BLE_MESH_WEMOS_C3_PICO=y
+# end of Ble-mesh sensor configuration
 
 #
 # Compiler options
@@ -832,7 +833,7 @@ CONFIG_BLE_MESH_HEALTH_SRV=y
 # CONFIG_BLE_MESH_GENERIC_POWER_LEVEL_CLI is not set
 # CONFIG_BLE_MESH_GENERIC_BATTERY_CLI is not set
 # CONFIG_BLE_MESH_GENERIC_LOCATION_CLI is not set
-# CONFIG_BLE_MESH_GENERIC_PROPERTY_CLI is not set
+CONFIG_BLE_MESH_GENERIC_PROPERTY_CLI=y
 # CONFIG_BLE_MESH_SENSOR_CLI is not set
 # CONFIG_BLE_MESH_TIME_CLI is not set
 # CONFIG_BLE_MESH_SCENE_CLI is not set

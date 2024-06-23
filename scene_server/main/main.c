@@ -54,13 +54,104 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .relay_retransmit = ESP_BLE_MESH_TRANSMIT(2, 20),
 };
 
-NET_BUF_SIMPLE_DEFINE_STATIC(scene_value, 2);
-static esp_ble_mesh_scene_register_t scenes_register[1] = {
+NET_BUF_SIMPLE_DEFINE_STATIC(scene0_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(scene1_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(scene2_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(scene3_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(scene4_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(scene5_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(scene6_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(scene7_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(scene8_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(scene9_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(sceneA_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(sceneB_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(sceneC_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(sceneD_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(sceneE_value, 2);
+NET_BUF_SIMPLE_DEFINE_STATIC(sceneF_value, 2);
+
+static esp_ble_mesh_scene_register_t scenes_register[16] = {
     [0] = {
-        .scene_number=1,
+        .scene_number = 0x0000,
         .scene_type = 0,
-        .scene_value = &scene_value
-    }
+        .scene_value = &scene0_value
+    },
+    [1] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &scene1_value
+    },
+    [2] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &scene2_value
+    },
+    [3] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &scene3_value
+    },
+    [4] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &scene4_value
+    },
+    [5] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &scene5_value
+    },
+    [6] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &scene6_value
+    },
+    [7] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &scene7_value
+    },
+    [8] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &scene8_value
+    },
+    [9] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &scene9_value
+    },
+    [10] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &sceneA_value
+    },
+    [11] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &sceneB_value
+    },
+    [12] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &sceneC_value
+    },
+    [13] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &sceneD_value
+    },
+    [14] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &sceneE_value
+    },
+    [15] = {
+        .scene_number = 0x0000,
+        .scene_type = 0,
+        .scene_value = &sceneF_value
+    },
 };
 
 esp_ble_mesh_scenes_state_t state = {
@@ -192,7 +283,6 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
 }
 
 //https://github.com/espressif/esp-idf/issues/5421
-
 static void example_ble_mesh_scene_server_cb(esp_ble_mesh_time_scene_server_cb_event_t event,
                                              esp_ble_mesh_time_scene_server_cb_param_t *param) {
     ESP_LOGI(TAG, "CALLBACK");

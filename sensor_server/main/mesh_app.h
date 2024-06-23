@@ -15,6 +15,8 @@
 #define BT_MESH_PROP_ID_PRESENT_AMB_LIGHT_LEVEL             0x004E
 #define BT_MESH_PROP_ID_PRESENT_INDOOR_RELATIVE_HUMIDITY    0x00A7
 #define BT_MESH_PROP_ID_MOTION_SENSED                       0x0042
+#define BT_MESH_PROP_ID_PRESENT_AMB_CO2_CONCENTRATION       0x0077
+#define BT_MESH_PROP_ID_PRESENT_AMB_VOC_CONCENTRATION       0x0078
 
 #define SENSOR_POSITIVE_TOLERANCE   ESP_BLE_MESH_SENSOR_UNSPECIFIED_POS_TOLERANCE
 #define SENSOR_NEGATIVE_TOLERANCE   ESP_BLE_MESH_SENSOR_UNSPECIFIED_NEG_TOLERANCE
@@ -50,3 +52,7 @@ void mesh_app_update_temperature(float new_value);
 void mesh_app_update_humidity(float new_value);
 
 void mesh_app_update_luminocity(float new_value);
+
+void mesh_app_update_tvoc(uint16_t new_value);
+
+void mesh_app_update_eco2(uint16_t new_value);
