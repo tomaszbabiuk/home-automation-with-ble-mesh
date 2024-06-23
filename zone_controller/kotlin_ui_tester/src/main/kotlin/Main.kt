@@ -50,20 +50,18 @@ fun connect(portName: String) {
     }
 }
 
-class SerialReader(var inputStream: InputStream) : Runnable {
+class SerialReader(private var inputStream: InputStream) : Runnable {
 
     private val renderer = SerialNextionRenderer(writeQueue)
     private val cumulativeBuffer = ArrayList<Byte>()
 
     private val viewModels = listOf(
-        WifiScanNVM(renderer),
+        WifiReadyToScanNVM(renderer),
+        ChooseSsidNVM(renderer),
         WifiSsidNVM(renderer),
         WifiPasswordNVM(renderer),
-        InboxNVM(renderer),
-        InboxDetailsNVM(renderer),
-        StateSelectedNVM(renderer),
-        ControllerSelectedNVM(renderer),
-        ColorSelectedNVM(renderer)
+        StatusRequestNVM(renderer),
+        NtpAddressNVM(renderer)
     )
 
 
